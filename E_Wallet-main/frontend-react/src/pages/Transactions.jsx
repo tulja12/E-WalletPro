@@ -7,6 +7,7 @@ import { extractErrorMessage, readResponsePayload } from "../utils/api";
 function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [message, setMessage] = useState("");
+  const [historyNotice, setHistoryNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [emailingHistory, setEmailingHistory] = useState(false);
   const [notice, setNotice] = useState({ type: "", text: "" });
@@ -24,7 +25,23 @@ function Transactions() {
     fetchTransactions();
   }, [navigate]);
 
-  const fetchTransactions = async () => {
+  useEffect(() => {
+    if (!historyNotice) {
+      return undefined;
+    }
+
+    const retryTimer = window.setInterval(() => {
+      fetchTransactions({ silent: true });
+    }, 5000);
+
+    return () => window.clearInterval(retryTimer);
+  }, [historyNotice]);
+
+  const fetchTransactions = async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+    }
+
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(apiUrl("/transactions"), {
@@ -37,13 +54,25 @@ function Transactions() {
       if (response.ok) {
         setTransactions(Array.isArray(data) ? data : []);
         setMessage("");
+        setHistoryNotice("");
+      } else if (response.status >= 500) {
+        setMessage("");
+        setHistoryNotice(
+          "Transaction history service is temporarily unavailable. Completed wallet operations will appear here automatically when it comes back online."
+        );
       } else {
         setMessage(extractErrorMessage(data, "Failed to load transactions."));
+        setHistoryNotice("");
       }
     } catch (error) {
-      setMessage("Unable to reach the transaction service.");
+      setMessage("");
+      setHistoryNotice(
+        "Transaction history service is temporarily unavailable. Completed wallet operations will appear here automatically when it comes back online."
+      );
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -161,16 +190,19 @@ function Transactions() {
               Transaction History
             </h2>
             <p style={{ color: "#64748b", margin: 0 }}>
-              Review your wallet activity and email a copy of the full history to yourself.
+              Review your wallet activity. History is synced asynchronously and will catch up automatically after service recovery.
             </p>
           </div>
 
           <button
             className="btn fw-semibold"
             onClick={sendHistoryEmail}
-            disabled={emailingHistory || loading}
+            disabled={emailingHistory || loading || Boolean(historyNotice)}
             style={{
-              background: emailingHistory ? "rgba(59, 130, 246, 0.18)" : "linear-gradient(135deg, #2563eb, #1d4ed8)",
+              background:
+                emailingHistory || historyNotice
+                  ? "rgba(59, 130, 246, 0.18)"
+                  : "linear-gradient(135deg, #2563eb, #1d4ed8)",
               color: "#fff",
               border: "none",
               borderRadius: "12px",
@@ -179,7 +211,7 @@ function Transactions() {
               boxShadow: "0 14px 28px rgba(29, 78, 216, 0.25)"
             }}
           >
-            {emailingHistory ? "Sending..." : "Email My History"}
+            {historyNotice ? "History Service Offline" : emailingHistory ? "Sending..." : "Email My History"}
           </button>
         </div>
 
@@ -213,6 +245,21 @@ function Transactions() {
             </div>
           ) : null}
 
+          {historyNotice ? (
+            <div
+              className="mb-4"
+              style={{
+                background: "rgba(245, 158, 11, 0.14)",
+                color: "#b45309",
+                border: "1px solid rgba(245, 158, 11, 0.24)",
+                borderRadius: "14px",
+                padding: "14px 16px"
+              }}
+            >
+              {historyNotice}
+            </div>
+          ) : null}
+
           {loading ? (
             <div className="text-center py-5" style={{ color: "#0f172a" }}>
               <div className="spinner-border mb-3" style={{ color: "#3b82f6" }} role="status"></div>
@@ -232,6 +279,15 @@ function Transactions() {
               >
                 {message}
               </div>
+            </div>
+          ) : historyNotice && transactions.length === 0 ? (
+            <div className="text-center py-5">
+              <div style={{ fontSize: "50px", color: "#fbbf24", marginBottom: "15px" }}>Sync</div>
+              <h5 className="fw-semibold" style={{ color: "#0f172a" }}>History Sync In Progress</h5>
+              <p style={{ color: "#64748b", maxWidth: "460px", margin: "0 auto" }}>
+                Transfers and wallet updates can still complete while the transaction history service is offline.
+                This page retries automatically and will show the queued entries when the service comes back online.
+              </p>
             </div>
           ) : transactions.length > 0 ? (
             <div className="transaction-list">

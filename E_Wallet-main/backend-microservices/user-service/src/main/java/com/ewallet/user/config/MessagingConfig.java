@@ -9,6 +9,6 @@ public class MessagingConfig {
 
     public static final String USER_REGISTERED_QUEUE = "ewallet.user.registered.queue";
 
-    private MessagingConfig() {
+    public MessagingConfig() {
     }
 }

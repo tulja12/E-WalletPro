@@ -94,7 +94,7 @@ function Transfer() {
         return;
       }
 
-      setMessage("Transfer successful");
+      setMessage("Transfer successful. History will update automatically.");
       setAmount("");
     } catch (error) {
       console.error(error);
@@ -137,7 +137,9 @@ function Transfer() {
         return;
       }
 
-      setMessage(`Payment sent to @${data.receiverUsername}. Transaction #${data.transactionId}`);
+      setMessage(
+        `Payment sent to @${data.receiverUsername}. Transaction #${data.transactionId}. History will sync automatically.`
+      );
       setWalletBalance(Number(data.remainingWalletBalance || 0));
       setAmount("");
       setReceiverUsername("");

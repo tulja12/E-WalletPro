@@ -46,7 +46,8 @@ If you want to start the local broker manually:
 
 ```powershell
 cd .\backend-microservices
-$env:TEMP\apache-maven-3.9.9\bin\mvn.cmd -pl local-activemq-broker exec:java
+$env:TEMP\apache-maven-3.9.9\bin\mvn.cmd -pl local-activemq-broker -am -DskipTests package
+java -jar .\local-activemq-broker\target\local-activemq-broker-1.0.0-jar-with-dependencies.jar
 ```
 
 Start backend services in separate terminals:

@@ -156,13 +156,26 @@ function Ensure-LocalMySql {
 }
 
 function Ensure-LocalBroker([string]$mavenQuoted) {
+    $brokerJar = Join-Path $backend "local-activemq-broker\target\local-activemq-broker-1.0.0-jar-with-dependencies.jar"
+
     if (Test-TcpPort 61616) {
         Write-Step "ActiveMQ is already reachable on localhost:61616."
         return
     }
 
     Write-Step "ActiveMQ is not reachable on localhost:61616. Starting the local broker module."
-    Open-Terminal $backend "& $mavenQuoted -pl local-activemq-broker exec:java" "ewallet-local-broker"
+    if (-not (Test-Path $brokerJar)) {
+        if ($DryRun) {
+            Write-Step "Dry run: would build $brokerJar."
+        } else {
+            & $mavenQuoted -pl local-activemq-broker -am -DskipTests package
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to build the local ActiveMQ broker jar."
+            }
+        }
+    }
+
+    Open-Terminal $backend "java -jar '.\local-activemq-broker\target\local-activemq-broker-1.0.0-jar-with-dependencies.jar'" "ewallet-local-broker"
     Wait-ForPort -port 61616 -timeoutSeconds 20 -name "ActiveMQ broker"
 }
 

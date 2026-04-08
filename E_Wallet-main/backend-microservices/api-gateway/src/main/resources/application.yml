@@ -47,7 +47,7 @@ spring:
           predicates:
             - Path=/wallet/balance
         - id: transaction-wallet
-          uri: lb://transaction-service
+          uri: lb://wallet-service
           predicates:
             - Path=/wallet/add,/wallet/add-from-account,/wallet/withdraw,/wallet/transfer/**
         - id: transaction-history

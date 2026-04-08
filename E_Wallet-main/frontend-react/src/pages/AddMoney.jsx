@@ -86,7 +86,7 @@ function AddMoney() {
         `Funds added successfully. Wallet balance: Rs ${Number(data.walletBalance || 0).toLocaleString("en-IN", {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2
-        })}`
+        })}. History will sync automatically.`
       );
       setAmount("");
       setTimeout(() => navigate("/dashboard"), 2000);

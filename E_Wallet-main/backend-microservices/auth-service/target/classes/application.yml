@@ -1,0 +1,29 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+  devtools:
+    restart:
+      enabled: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:ewallet-secret-key-for-jwt-signing-12345}
+    access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:3600000}
+    mfa-token-expiration-ms: ${JWT_MFA_TOKEN_EXPIRATION_MS:600000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

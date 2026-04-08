@@ -1,0 +1,15 @@
+com\ewallet\auth\dto\InternalUserDto.class
+com\ewallet\auth\controller\AuthController.class
+com\ewallet\auth\dto\MfaUpdateRequest.class
+com\ewallet\auth\service\AuthService.class
+com\ewallet\auth\client\UserServiceClient.class
+com\ewallet\auth\dto\MfaVerificationRequest.class
+com\ewallet\auth\dto\LoginRequest.class
+com\ewallet\auth\controller\ApiExceptionHandler.class
+com\ewallet\auth\dto\AuthResponse.class
+com\ewallet\auth\dto\UserRegistrationResponse.class
+com\ewallet\auth\service\TokenService.class
+com\ewallet\auth\AuthServiceApplication.class
+com\ewallet\auth\config\SecurityConfig.class
+com\ewallet\auth\service\TokenService$InternalUserPrincipal.class
+com\ewallet\auth\dto\SignupRequest.class

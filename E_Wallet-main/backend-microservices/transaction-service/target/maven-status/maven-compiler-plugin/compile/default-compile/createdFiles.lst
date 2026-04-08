@@ -1,0 +1,17 @@
+com\ewallet\transaction\dto\UserLookupResponse.class
+com\ewallet\transaction\exception\ApiException.class
+com\ewallet\transaction\controller\TransactionController.class
+com\ewallet\transaction\dto\AccountWalletOperationRequest.class
+com\ewallet\transaction\dto\SelfTransferRequest.class
+com\ewallet\transaction\dto\InternalUserResponse.class
+com\ewallet\transaction\dto\UserTransferRequest.class
+com\ewallet\transaction\dto\WalletOperationResponse.class
+com\ewallet\transaction\dto\WalletTransferOperationRequest.class
+com\ewallet\transaction\client\WalletServiceClient.class
+com\ewallet\transaction\dto\AmountOperationRequest.class
+com\ewallet\transaction\service\TransactionCommandService$WalletOperationCall.class
+com\ewallet\transaction\service\TransactionCommandService.class
+com\ewallet\transaction\client\UserServiceClient.class
+com\ewallet\transaction\dto\AccountAmountRequest.class
+com\ewallet\transaction\dto\DirectAddMoneyRequest.class
+com\ewallet\transaction\dto\SelfTransferOperationRequest.class

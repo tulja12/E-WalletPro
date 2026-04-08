@@ -1,0 +1,8 @@
+CREATE DATABASE IF NOT EXISTS ewallet_user;
+CREATE DATABASE IF NOT EXISTS ewallet_wallet;
+CREATE DATABASE IF NOT EXISTS ewallet_transaction;
+
+GRANT ALL PRIVILEGES ON ewallet_user.* TO 'TEAM_A'@'%';
+GRANT ALL PRIVILEGES ON ewallet_wallet.* TO 'TEAM_A'@'%';
+GRANT ALL PRIVILEGES ON ewallet_transaction.* TO 'TEAM_A'@'%';
+FLUSH PRIVILEGES;

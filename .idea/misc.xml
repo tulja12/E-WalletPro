@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ExternalStorageConfigurationManager" enabled="true" />
+  <component name="MavenProjectsManager">
+    <option name="originalFiles">
+      <list>
+        <option value="$PROJECT_DIR$/E_Wallet-main/backend-springboot/pom.xml" />
+        <option value="$PROJECT_DIR$/E_Wallet-main/backend-microservices/api-gateway/pom.xml" />
+        <option value="$PROJECT_DIR$/E_Wallet-main/backend-microservices/auth-service/pom.xml" />
+        <option value="$PROJECT_DIR$/E_Wallet-main/backend-microservices/service-registry/pom.xml" />
+        <option value="$PROJECT_DIR$/E_Wallet-main/backend-microservices/transaction-service/pom.xml" />
+        <option value="$PROJECT_DIR$/E_Wallet-main/backend-microservices/user-service/pom.xml" />
+        <option value="$PROJECT_DIR$/E_Wallet-main/backend-microservices/wallet-service/pom.xml" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_23" default="true" project-jdk-name="23" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/out" />
+  </component>
+</project>

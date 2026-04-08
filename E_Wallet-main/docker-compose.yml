@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ewallet-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_USER: TEAM_A
+      MYSQL_PASSWORD: TEAM_A_PASSWORD
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  activemq:
+    image: apache/activemq-classic:latest
+    container_name: ewallet-activemq
+    restart: unless-stopped
+    ports:
+      - "61616:61616"
+      - "8161:8161"
+
+volumes:
+  mysql-data:

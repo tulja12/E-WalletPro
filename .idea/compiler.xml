@@ -9,12 +9,14 @@
         <module name="auth-service" />
         <module name="api-gateway" />
         <module name="transaction-service" />
-        <module name="backend" />
         <module name="user-service" />
         <module name="service-registry" />
         <module name="wallet-service" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="backend" target="17" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">

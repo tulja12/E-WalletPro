@@ -20,6 +20,8 @@ public record BankAccountRequest(
         @Size(max = 100, message = "Account holder must be 100 characters or fewer")
         @Pattern(regexp = "^[A-Za-z ]+$", message = "Account holder can contain only letters and spaces")
         String accountHolder,
+        @Pattern(regexp = "^$|^[0-9]{4}$", message = "PIN must contain exactly 4 digits")
+        String pin,
         @NotNull(message = "Initial balance is required")
         @DecimalMin(value = "0.00", message = "Initial balance cannot be negative")
         BigDecimal balance

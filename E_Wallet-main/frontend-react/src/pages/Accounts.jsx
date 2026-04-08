@@ -6,6 +6,7 @@ import { extractErrorMessage, readResponsePayload } from "../utils/api";
 import {
   sanitizeCardNumber,
   sanitizeLettersOnly,
+  sanitizePin,
   validateBankAccountForm
 } from "../utils/validation";
 
@@ -13,6 +14,7 @@ const emptyForm = {
   bankName: "",
   cardNumber: "",
   accountHolder: "",
+  pin: "",
   balance: ""
 };
 
@@ -109,6 +111,7 @@ function Accounts() {
           bankName: form.bankName.trim(),
           cardNumber: sanitizeCardNumber(form.cardNumber),
           accountHolder: form.accountHolder.trim(),
+          pin: form.pin.trim(),
           balance: Number(form.balance)
         })
       });
@@ -252,10 +255,20 @@ function Accounts() {
                       <h5 className="fw-bold m-0" style={{ letterSpacing: "1px", textTransform: "uppercase", fontSize: "14px" }}>
                         {account.bankName}
                       </h5>
-                      <div style={{ display: "flex", alignItems: "center", position: "relative", width: "36px", height: "22px" }}>
-                        <div style={{ width: "22px", height: "22px", borderRadius: "50%", background: "rgba(239, 68, 68, 0.8)", position: "absolute", left: 0 }} />
-                        <div style={{ width: "22px", height: "22px", borderRadius: "50%", background: "rgba(245, 158, 11, 0.8)", position: "absolute", right: 0, mixBlendMode: "screen" }} />
-                      </div>
+                      <span
+                        className="px-2 py-1 fw-semibold"
+                        style={{
+                          borderRadius: "999px",
+                          background: account.pinConfigured ? "rgba(16, 185, 129, 0.16)" : "rgba(245, 158, 11, 0.16)",
+                          border: `1px solid ${account.pinConfigured ? "rgba(16, 185, 129, 0.28)" : "rgba(245, 158, 11, 0.28)"}`,
+                          color: account.pinConfigured ? "#a7f3d0" : "#fde68a",
+                          fontSize: "10px",
+                          letterSpacing: "0.8px",
+                          textTransform: "uppercase"
+                        }}
+                      >
+                        {account.pinConfigured ? "PIN Set" : "PIN Missing"}
+                      </span>
                     </div>
 
                     <div className="mb-3">
@@ -296,6 +309,29 @@ function Accounts() {
                       </div>
                     </div>
 
+                    <div
+                      className="d-flex justify-content-between align-items-center mb-4"
+                      style={{
+                        padding: "12px 14px",
+                        borderRadius: "14px",
+                        background: "rgba(255,255,255,0.08)",
+                        border: "1px solid rgba(255,255,255,0.08)"
+                      }}
+                    >
+                      <div>
+                        <small style={{ color: "rgba(255,255,255,0.6)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                          Security
+                        </small>
+                        <div className="fw-semibold" style={{ fontSize: "13px" }}>
+                          {account.pinConfigured ? "Protected by 4-digit PIN" : "Add a PIN to protect this card"}
+                        </div>
+                      </div>
+                      <i
+                        className={`bi ${account.pinConfigured ? "bi-shield-lock-fill" : "bi-shield-exclamation"}`}
+                        style={{ fontSize: "22px", color: account.pinConfigured ? "#a7f3d0" : "#fde68a" }}
+                      />
+                    </div>
+
                     <div className="d-flex gap-2" style={{ paddingTop: "15px", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
                       <button
                         className="btn btn-sm w-50 fw-semibold"
@@ -305,7 +341,7 @@ function Accounts() {
                           borderRadius: "10px",
                           border: "1px solid rgba(255,255,255,0.05)"
                         }}
-                        onClick={() => setForm({ ...account, balance: String(account.balance ?? "") })}
+                        onClick={() => setForm({ ...account, pin: "", balance: String(account.balance ?? "") })}
                       >
                         Edit Account
                       </button>
@@ -427,6 +463,18 @@ function Accounts() {
                     />
                   </div>
                   <div>
+                    <label style={labelStyle}>{form.id ? "Account PIN (leave blank to keep current)" : "4-Digit Account PIN"}</label>
+                    <input
+                      className="form-control"
+                      placeholder={form.id ? "Enter new PIN only if you want to replace it" : "1234"}
+                      value={form.pin}
+                      onChange={(event) => setForm({ ...form, pin: sanitizePin(event.target.value) })}
+                      inputMode="numeric"
+                      type="password"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
                     <label style={labelStyle}>Initial Balance</label>
                     <input
                       type="number"
@@ -439,6 +487,9 @@ function Accounts() {
                       style={inputStyle}
                     />
                   </div>
+                  <p style={{ color: "#64748b", fontSize: "12px", marginTop: "-6px", marginBottom: "16px" }}>
+                    This PIN is required when moving money from the selected bank card.
+                  </p>
 
                   <button
                     type="submit"

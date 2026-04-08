@@ -1,9 +1,30 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { apiUrl } from "../config/api";
 import { extractErrorMessage, readResponsePayload } from "../utils/api";
-import { sanitizeUsername, validateSelfTransfer, validateUserTransfer } from "../utils/validation";
+import {
+  sanitizePin,
+  sanitizeUsername,
+  validateAccountPin,
+  validateSelfTransfer,
+  validateUserTransfer
+} from "../utils/validation";
+
+const cardGradients = [
+  "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+  "linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%)",
+  "linear-gradient(135deg, #0f766e 0%, #115e59 100%)",
+  "linear-gradient(135deg, #7c3aed 0%, #581c87 100%)"
+];
+
+const formatCurrency = (value) =>
+  `Rs ${Number(value || 0).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+
+const maskCard = (cardNumber) => `•••• ${String(cardNumber || "").slice(-4) || "0000"}`;
 
 function Transfer() {
   const [mode, setMode] = useState("self");
@@ -12,6 +33,7 @@ function Transfer() {
   const [loadingWalletBalance, setLoadingWalletBalance] = useState(true);
   const [fromAccount, setFromAccount] = useState("");
   const [toAccount, setToAccount] = useState("");
+  const [sourcePin, setSourcePin] = useState("");
   const [receiverUsername, setReceiverUsername] = useState("");
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState("");
@@ -21,6 +43,39 @@ function Transfer() {
   const userId = localStorage.getItem("userId");
   const currentUsername = localStorage.getItem("username") || "";
 
+  const loadData = async () => {
+    try {
+      const [accountsResponse, walletResponse] = await Promise.all([
+        fetch(apiUrl("/accounts"), {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(apiUrl("/wallet/balance"), {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+
+      const accountsData = await readResponsePayload(accountsResponse);
+      const walletData = await readResponsePayload(walletResponse);
+
+      if (accountsResponse.ok) {
+        setAccounts(Array.isArray(accountsData) ? accountsData : []);
+      } else {
+        setMessage(extractErrorMessage(accountsData, "Unable to load linked bank accounts."));
+      }
+
+      if (walletResponse.ok) {
+        setWalletBalance(Number(walletData.balance || 0));
+      } else {
+        setMessage((current) => current || extractErrorMessage(walletData, "Unable to load wallet balance."));
+      }
+    } catch (error) {
+      console.error(error);
+      setMessage("Unable to load transfer data.");
+    } finally {
+      setLoadingWalletBalance(false);
+    }
+  };
+
   useEffect(() => {
     if (!token || !userId || userId === "undefined") {
       localStorage.clear();
@@ -28,41 +83,18 @@ function Transfer() {
       return;
     }
 
-    const loadData = async () => {
-      try {
-        const [accountsResponse, walletResponse] = await Promise.all([
-          fetch(apiUrl("/accounts"), {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          fetch(apiUrl("/wallet/balance"), {
-            headers: { Authorization: `Bearer ${token}` }
-          })
-        ]);
-
-        const accountsData = await readResponsePayload(accountsResponse);
-        const walletData = await readResponsePayload(walletResponse);
-
-        if (accountsResponse.ok) {
-          setAccounts(Array.isArray(accountsData) ? accountsData : []);
-        } else {
-          setMessage(extractErrorMessage(accountsData, "Unable to load linked bank accounts."));
-        }
-
-        if (walletResponse.ok) {
-          setWalletBalance(Number(walletData.balance || 0));
-        } else {
-          setMessage((current) => current || extractErrorMessage(walletData, "Unable to load wallet balance."));
-        }
-      } catch (error) {
-        console.error(error);
-        setMessage("Unable to load transfer data.");
-      } finally {
-        setLoadingWalletBalance(false);
-      }
-    };
-
     loadData();
   }, [navigate, token, userId]);
+
+  const selectedFromAccount = useMemo(
+    () => accounts.find((account) => String(account.id) === String(fromAccount)) || null,
+    [accounts, fromAccount]
+  );
+
+  const selectedToAccount = useMemo(
+    () => accounts.find((account) => String(account.id) === String(toAccount)) || null,
+    [accounts, toAccount]
+  );
 
   const handleSelfTransfer = async (event) => {
     event.preventDefault();
@@ -71,6 +103,12 @@ function Transfer() {
     const validationError = validateSelfTransfer({ fromAccount, toAccount, amount });
     if (validationError) {
       setMessage(validationError);
+      return;
+    }
+
+    const pinError = validateAccountPin(sourcePin, "Source card PIN");
+    if (pinError) {
+      setMessage(pinError);
       return;
     }
 
@@ -84,6 +122,7 @@ function Transfer() {
         body: JSON.stringify({
           fromAccountId: Number(fromAccount),
           toAccountId: Number(toAccount),
+          pin: sourcePin,
           amount: Number(amount)
         })
       });
@@ -94,8 +133,10 @@ function Transfer() {
         return;
       }
 
-      setMessage("Transfer successful. History will update automatically.");
+      setMessage("Transfer successful. History will sync automatically.");
       setAmount("");
+      setSourcePin("");
+      await loadData();
     } catch (error) {
       console.error(error);
       setMessage("Unable to reach the transfer service");
@@ -138,7 +179,7 @@ function Transfer() {
       }
 
       setMessage(
-        `Payment sent to @${data.receiverUsername}. Transaction #${data.transactionId}. History will sync automatically.`
+        `Payment sent to @${data.receiverUsername}. Transaction #${data.transactionId}. History syncs automatically.`
       );
       setWalletBalance(Number(data.remainingWalletBalance || 0));
       setAmount("");
@@ -149,50 +190,33 @@ function Transfer() {
     }
   };
 
-  const inputStyle = {
-    background: "#ffffff",
-    border: "1px solid #cbd5e1",
-    color: "#0f172a",
-    borderRadius: "12px",
-    padding: "12px 16px",
-    transition: "all 0.3s ease",
-    boxShadow: "inset 0 2px 4px rgba(148,163,184,0.12)",
-    width: "100%"
-  };
-
-  const labelStyle = {
-    color: "#334155",
-    fontSize: "13px",
-    fontWeight: "500",
-    marginBottom: "6px",
-    display: "block"
-  };
-
   const isSuccessMessage =
     message.toLowerCase().includes("payment sent") || message.toLowerCase().includes("transfer successful");
 
+  const cardButtonStyle = (selected, disabled, gradient) => ({
+    width: "100%",
+    textAlign: "left",
+    border: selected ? "2px solid #93c5fd" : "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "22px",
+    padding: "20px",
+    color: "#ffffff",
+    background: gradient,
+    opacity: disabled ? 0.45 : 1,
+    cursor: disabled ? "not-allowed" : "pointer",
+    boxShadow: selected
+      ? "0 20px 36px rgba(37, 99, 235, 0.24)"
+      : "0 18px 34px rgba(15, 23, 42, 0.24)"
+  });
+
   return (
-    <div style={{ padding: "40px 20px", display: "flex", justifyContent: "center" }}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        style={{
-          width: "100%",
-          maxWidth: "500px",
-          background: "#ffffff",
-          borderRadius: "24px",
-          padding: "40px",
-          boxShadow: "0 24px 56px rgba(148, 163, 184, 0.16)",
-          border: "1px solid #dbe4ef"
-        }}
-      >
-        <div className="mb-4 text-center">
-          <h3 className="fw-bold mb-0" style={{ color: "#0f172a", letterSpacing: "-0.5px" }}>
-            Transfer
-          </h3>
-          <p style={{ color: "#64748b", fontSize: "14px", margin: 0 }}>
-            Send money or move funds between your own accounts.
+    <div style={{ padding: "40px 20px" }}>
+      <div className="container" style={{ maxWidth: "1140px", margin: "0 auto" }}>
+        <div className="mb-4">
+          <h2 className="fw-bold mb-1" style={{ color: "#0f172a", letterSpacing: "-0.7px" }}>
+            Transfer Funds
+          </h2>
+          <p style={{ color: "#64748b", margin: 0 }}>
+            Move money between your own cards or send a wallet payment to another user.
           </p>
         </div>
 
@@ -200,33 +224,18 @@ function Transfer() {
           className="d-flex mb-4 p-1"
           style={{
             background: "#f8fafc",
-            borderRadius: "14px",
-            border: "1px solid #e2e8f0"
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+            maxWidth: "380px"
           }}
         >
           <button
             type="button"
             className="btn w-50 fw-semibold"
             style={{
-              background: mode === "peer" ? "linear-gradient(135deg, #3b82f6, #2563eb)" : "transparent",
-              color: mode === "peer" ? "#fff" : "#64748b",
-              borderRadius: "10px",
-              border: "none"
-            }}
-            onClick={() => {
-              setMode("peer");
-              setMessage("");
-            }}
-          >
-            Send to User
-          </button>
-          <button
-            type="button"
-            className="btn w-50 fw-semibold"
-            style={{
               background: mode === "self" ? "linear-gradient(135deg, #10b981, #059669)" : "transparent",
               color: mode === "self" ? "#fff" : "#64748b",
-              borderRadius: "10px",
+              borderRadius: "12px",
               border: "none"
             }}
             onClick={() => {
@@ -236,227 +245,429 @@ function Transfer() {
           >
             Self Transfer
           </button>
+          <button
+            type="button"
+            className="btn w-50 fw-semibold"
+            style={{
+              background: mode === "peer" ? "linear-gradient(135deg, #2563eb, #1d4ed8)" : "transparent",
+              color: mode === "peer" ? "#fff" : "#64748b",
+              borderRadius: "12px",
+              border: "none"
+            }}
+            onClick={() => {
+              setMode("peer");
+              setMessage("");
+            }}
+          >
+            Send to User
+          </button>
         </div>
 
         <AnimatePresence mode="wait">
           {mode === "peer" ? (
-            <motion.form
+            <motion.div
               key="peer"
-              initial={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, x: -18 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              onSubmit={handlePeerTransfer}
+              exit={{ opacity: 0, x: 18 }}
+              className="row g-4"
             >
-              <div
-                className="mb-4 p-3"
-                style={{
-                  background: "#f8fafc",
-                  borderRadius: "14px",
-                  border: "1px solid #e2e8f0"
-                }}
-              >
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <span style={{ color: "#64748b", fontSize: "13px", fontWeight: "600" }}>Wallet Balance</span>
-                  <span className="fw-bold" style={{ color: "#0f172a" }}>
-                    {loadingWalletBalance
-                      ? "Loading..."
-                      : `Rs ${walletBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                  </span>
+              <div className="col-lg-7">
+                <div
+                  style={{
+                    background: "#ffffff",
+                    borderRadius: "28px",
+                    padding: "28px",
+                    border: "1px solid #dbe4ef",
+                    boxShadow: "0 24px 56px rgba(148, 163, 184, 0.16)"
+                  }}
+                >
+                  <h5 className="fw-bold mb-1" style={{ color: "#0f172a" }}>Send from Wallet</h5>
+                  <p style={{ color: "#64748b", marginBottom: "24px", fontSize: "14px" }}>
+                    Wallet-to-user payments do not require a bank card selection.
+                  </p>
+
+                  <form onSubmit={handlePeerTransfer}>
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold" style={{ color: "#334155", fontSize: "13px" }}>
+                        Recipient Username
+                      </label>
+                      <div className="input-group">
+                        <span
+                          className="input-group-text"
+                          style={{
+                            background: "#f8fafc",
+                            border: "1px solid #cbd5e1",
+                            borderRight: "none",
+                            color: "#64748b"
+                          }}
+                        >
+                          @
+                        </span>
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="username"
+                          value={receiverUsername}
+                          onChange={(event) => setReceiverUsername(event.target.value.replace(/\s+/g, ""))}
+                          style={{
+                            background: "#ffffff",
+                            border: "1px solid #cbd5e1",
+                            color: "#0f172a",
+                            borderRadius: "12px",
+                            padding: "12px 16px",
+                            boxShadow: "inset 0 2px 4px rgba(148,163,184,0.12)",
+                            borderLeft: "none",
+                            borderTopLeftRadius: 0,
+                            borderBottomLeftRadius: 0
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="form-label fw-semibold" style={{ color: "#334155", fontSize: "13px" }}>
+                        Amount
+                      </label>
+                      <div className="input-group">
+                        <span
+                          className="input-group-text"
+                          style={{
+                            background: "#f8fafc",
+                            border: "1px solid #cbd5e1",
+                            borderRight: "none",
+                            color: "#64748b"
+                          }}
+                        >
+                          Rs
+                        </span>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          className="form-control"
+                          placeholder="0.00"
+                          value={amount}
+                          onChange={(event) => setAmount(event.target.value)}
+                          style={{
+                            background: "#ffffff",
+                            border: "1px solid #cbd5e1",
+                            color: "#0f172a",
+                            borderRadius: "12px",
+                            padding: "12px 16px",
+                            boxShadow: "inset 0 2px 4px rgba(148,163,184,0.12)",
+                            borderLeft: "none",
+                            borderTopLeftRadius: 0,
+                            borderBottomLeftRadius: 0,
+                            fontSize: "20px",
+                            fontWeight: 700
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <motion.button
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      className="btn w-100 fw-semibold"
+                      style={{
+                        background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                        color: "#fff",
+                        padding: "15px",
+                        borderRadius: "14px",
+                        border: "none",
+                        boxShadow: "0 10px 24px rgba(37, 99, 235, 0.28)"
+                      }}
+                    >
+                      Send Payment
+                    </motion.button>
+                  </form>
                 </div>
-                <small style={{ color: "#64748b", fontSize: "12px", lineHeight: "1.5" }}>
-                  Payments are sent from your wallet to another user and recorded in transaction history.
-                </small>
               </div>
 
-              <div className="mb-3">
-                <label style={labelStyle}>Recipient Username</label>
-                <div className="input-group">
-                  <span
-                    className="input-group-text"
+              <div className="col-lg-5">
+                <div
+                  style={{
+                    background: "linear-gradient(160deg, #0f172a 0%, #1e293b 100%)",
+                    borderRadius: "28px",
+                    padding: "28px",
+                    color: "#fff",
+                    minHeight: "100%",
+                    boxShadow: "0 24px 56px rgba(15, 23, 42, 0.28)"
+                  }}
+                >
+                  <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "1.2px", color: "#93c5fd" }}>
+                    Wallet Balance
+                  </div>
+                  <div className="fw-bold mt-2" style={{ fontSize: "40px", letterSpacing: "-1px" }}>
+                    {loadingWalletBalance ? "Loading..." : formatCurrency(walletBalance)}
+                  </div>
+
+                  <div
+                    className="mt-4"
                     style={{
-                      background: "#f8fafc",
-                      border: "1px solid #cbd5e1",
-                      borderRight: "none",
-                      color: "#64748b"
+                      borderRadius: "18px",
+                      padding: "18px",
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1px solid rgba(255,255,255,0.08)"
                     }}
                   >
-                    @
-                  </span>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="username"
-                    value={receiverUsername}
-                    onChange={(event) => setReceiverUsername(event.target.value.replace(/\s+/g, ""))}
-                    style={{
-                      ...inputStyle,
-                      borderLeft: "none",
-                      borderTopLeftRadius: 0,
-                      borderBottomLeftRadius: 0
-                    }}
-                  />
+                    <div className="fw-semibold mb-2">Transfer Note</div>
+                    <p className="mb-0" style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: "1.6" }}>
+                      The payment is applied immediately from the wallet. Process history will update when the history service syncs.
+                    </p>
+                  </div>
                 </div>
               </div>
-
-              <div className="mb-4">
-                <label style={labelStyle}>Amount</label>
-                <div className="input-group">
-                  <span
-                    className="input-group-text"
-                    style={{
-                      background: "#f8fafc",
-                      border: "1px solid #cbd5e1",
-                      borderRight: "none",
-                      color: "#64748b"
-                    }}
-                  >
-                    Rs
-                  </span>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    className="form-control"
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
-                    style={{
-                      ...inputStyle,
-                      borderLeft: "none",
-                      borderTopLeftRadius: 0,
-                      borderBottomLeftRadius: 0,
-                      fontSize: "20px",
-                      fontWeight: "bold",
-                      letterSpacing: "1px"
-                    }}
-                  />
-                </div>
-              </div>
-
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="btn w-100 fw-semibold mb-3"
-                style={{
-                  background: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
-                  color: "#fff",
-                  padding: "16px",
-                  borderRadius: "14px",
-                  border: "none",
-                  boxShadow: "0 8px 25px rgba(139, 92, 246, 0.4)",
-                  fontSize: "16px"
-                }}
-              >
-                Send Secure Payment
-              </motion.button>
-            </motion.form>
+            </motion.div>
           ) : (
-            <motion.form
+            <motion.div
               key="self"
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: 18 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              onSubmit={handleSelfTransfer}
+              exit={{ opacity: 0, x: -18 }}
+              className="row g-4"
             >
-              <div className="mb-3">
-                <label style={labelStyle}>From Account</label>
-                <select
-                  className="form-select"
+              <div className="col-lg-8">
+                <div
                   style={{
-                    ...inputStyle,
-                    cursor: "pointer",
-                    backgroundImage:
-                      "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M4 6l4 4 4-4'/%3e%3c/svg%3e\")",
-                    backgroundRepeat: "no-repeat",
-                    backgroundPosition: "right 1rem center",
-                    backgroundSize: "16px 12px"
+                    background: "#ffffff",
+                    borderRadius: "28px",
+                    padding: "28px",
+                    border: "1px solid #dbe4ef",
+                    boxShadow: "0 24px 56px rgba(148, 163, 184, 0.16)"
                   }}
-                  value={fromAccount}
-                  onChange={(event) => setFromAccount(event.target.value)}
                 >
-                  <option value="">Select account</option>
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.bankName} - **** {account.cardNumber?.slice(-4)} - Rs {Number(account.balance || 0).toLocaleString("en-IN")}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <div className="row g-4">
+                    <div className="col-md-6">
+                      <div className="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                          <h5 className="fw-bold mb-1" style={{ color: "#0f172a" }}>From</h5>
+                          <p style={{ color: "#64748b", margin: 0, fontSize: "14px" }}>
+                            Choose the source card.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="d-flex flex-column gap-3">
+                        {accounts.map((account, index) => {
+                          const selected = String(fromAccount) === String(account.id);
 
-              <div className="mb-3">
-                <label style={labelStyle}>To Account</label>
-                <select
-                  className="form-select"
-                  style={{
-                    ...inputStyle,
-                    cursor: "pointer",
-                    backgroundImage:
-                      "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M4 6l4 4 4-4'/%3e%3c/svg%3e\")",
-                    backgroundRepeat: "no-repeat",
-                    backgroundPosition: "right 1rem center",
-                    backgroundSize: "16px 12px"
-                  }}
-                  value={toAccount}
-                  onChange={(event) => setToAccount(event.target.value)}
-                >
-                  <option value="">Select account</option>
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.bankName} - **** {account.cardNumber?.slice(-4)}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                          return (
+                            <motion.button
+                              key={`from-${account.id}`}
+                              type="button"
+                              whileHover={{ y: -2 }}
+                              whileTap={{ scale: 0.99 }}
+                              onClick={() => {
+                                setFromAccount(String(account.id));
+                                setSourcePin("");
+                                setMessage("");
+                              }}
+                              style={cardButtonStyle(selected, false, cardGradients[index % cardGradients.length])}
+                            >
+                              <div className="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                  <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "rgba(255,255,255,0.64)" }}>
+                                    {account.bankName}
+                                  </div>
+                                  <div className="fw-bold mt-2" style={{ fontSize: "22px" }}>{maskCard(account.cardNumber)}</div>
+                                </div>
+                                <span style={{ fontSize: "12px", color: "#bfdbfe", fontWeight: 700 }}>
+                                  {selected ? "Selected" : ""}
+                                </span>
+                              </div>
+                              <div className="d-flex justify-content-between align-items-end">
+                                <div>
+                                  <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "rgba(255,255,255,0.64)" }}>
+                                    Balance
+                                  </div>
+                                  <div className="fw-semibold">{formatCurrency(account.balance)}</div>
+                                </div>
+                                <div style={{ color: account.pinConfigured ? "#a7f3d0" : "#fde68a", fontSize: "12px", fontWeight: 600 }}>
+                                  {account.pinConfigured ? "PIN ready" : "PIN missing"}
+                                </div>
+                              </div>
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-              <div className="mb-4">
-                <label style={labelStyle}>Amount</label>
-                <div className="input-group">
-                  <span
-                    className="input-group-text"
-                    style={{
-                      background: "#f8fafc",
-                      border: "1px solid #cbd5e1",
-                      borderRight: "none",
-                      color: "#64748b"
-                    }}
-                  >
-                    Rs
-                  </span>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    className="form-control"
-                    placeholder="Enter amount"
-                    value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
-                    style={{
-                      ...inputStyle,
-                      borderLeft: "none",
-                      borderTopLeftRadius: 0,
-                      borderBottomLeftRadius: 0
-                    }}
-                  />
+                    <div className="col-md-6">
+                      <div className="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                          <h5 className="fw-bold mb-1" style={{ color: "#0f172a" }}>To</h5>
+                          <p style={{ color: "#64748b", margin: 0, fontSize: "14px" }}>
+                            Choose the destination card.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="d-flex flex-column gap-3">
+                        {accounts.map((account, index) => {
+                          const selected = String(toAccount) === String(account.id);
+                          const disabled = String(fromAccount) === String(account.id);
+
+                          return (
+                            <motion.button
+                              key={`to-${account.id}`}
+                              type="button"
+                              whileHover={{ y: disabled ? 0 : -2 }}
+                              whileTap={{ scale: disabled ? 1 : 0.99 }}
+                              disabled={disabled}
+                              onClick={() => {
+                                setToAccount(String(account.id));
+                                setMessage("");
+                              }}
+                              style={cardButtonStyle(selected, disabled, cardGradients[(index + 1) % cardGradients.length])}
+                            >
+                              <div className="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                  <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "rgba(255,255,255,0.64)" }}>
+                                    {account.bankName}
+                                  </div>
+                                  <div className="fw-bold mt-2" style={{ fontSize: "22px" }}>{maskCard(account.cardNumber)}</div>
+                                </div>
+                                <span style={{ fontSize: "12px", color: disabled ? "#cbd5e1" : "#bfdbfe", fontWeight: 700 }}>
+                                  {disabled ? "Same card" : selected ? "Selected" : ""}
+                                </span>
+                              </div>
+                              <div className="fw-semibold">{formatCurrency(account.balance)}</div>
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="btn w-100 fw-semibold mb-3"
-                style={{
-                  background: "linear-gradient(135deg, #3b82f6, #2563eb)",
-                  color: "#fff",
-                  padding: "14px",
-                  borderRadius: "12px",
-                  border: "none",
-                  boxShadow: "0 8px 20px rgba(59, 130, 246, 0.3)",
-                  fontSize: "16px"
-                }}
-              >
-                Transfer Now
-              </motion.button>
-            </motion.form>
+              <div className="col-lg-4">
+                <div
+                  style={{
+                    background: "#ffffff",
+                    borderRadius: "28px",
+                    padding: "28px",
+                    border: "1px solid #dbe4ef",
+                    boxShadow: "0 24px 56px rgba(148, 163, 184, 0.16)"
+                  }}
+                >
+                  <h5 className="fw-bold mb-1" style={{ color: "#0f172a" }}>Transfer Details</h5>
+                  <p style={{ color: "#64748b", marginBottom: "24px", fontSize: "14px" }}>
+                    Authorize the source card and confirm the amount.
+                  </p>
+
+                  <form onSubmit={handleSelfTransfer}>
+                    <div
+                      className="mb-3"
+                      style={{
+                        borderRadius: "18px",
+                        border: "1px solid #dbe4ef",
+                        background: "#f8fafc",
+                        padding: "16px"
+                      }}
+                    >
+                      <div className="d-flex justify-content-between align-items-start">
+                        <div>
+                          <div className="fw-semibold" style={{ color: "#0f172a" }}>
+                            {selectedFromAccount ? `${selectedFromAccount.bankName} ${maskCard(selectedFromAccount.cardNumber)}` : "Source card"}
+                          </div>
+                          <div style={{ color: "#64748b", fontSize: "13px" }}>
+                            {selectedToAccount ? `To ${selectedToAccount.bankName} ${maskCard(selectedToAccount.cardNumber)}` : "Pick a destination card"}
+                          </div>
+                        </div>
+                        {selectedFromAccount ? (
+                          <span style={{ color: selectedFromAccount.pinConfigured ? "#047857" : "#b45309", fontSize: "12px", fontWeight: 700 }}>
+                            {selectedFromAccount.pinConfigured ? "PIN ready" : "PIN missing"}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="form-label fw-semibold" style={{ color: "#334155", fontSize: "13px" }}>
+                        Amount
+                      </label>
+                      <div className="input-group">
+                        <span
+                          className="input-group-text"
+                          style={{
+                            background: "#f8fafc",
+                            border: "1px solid #cbd5e1",
+                            borderRight: "none",
+                            color: "#64748b"
+                          }}
+                        >
+                          Rs
+                        </span>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          className="form-control"
+                          placeholder="Enter amount"
+                          value={amount}
+                          onChange={(event) => setAmount(event.target.value)}
+                          style={{
+                            background: "#ffffff",
+                            border: "1px solid #cbd5e1",
+                            color: "#0f172a",
+                            borderRadius: "12px",
+                            padding: "12px 16px",
+                            boxShadow: "inset 0 2px 4px rgba(148,163,184,0.12)",
+                            borderLeft: "none",
+                            borderTopLeftRadius: 0,
+                            borderBottomLeftRadius: 0
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="form-label fw-semibold" style={{ color: "#334155", fontSize: "13px" }}>
+                        Source Card PIN
+                      </label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        className="form-control"
+                        placeholder="Enter 4-digit PIN"
+                        value={sourcePin}
+                        onChange={(event) => setSourcePin(sanitizePin(event.target.value))}
+                        style={{
+                          background: "#ffffff",
+                          border: "1px solid #cbd5e1",
+                          color: "#0f172a",
+                          borderRadius: "12px",
+                          padding: "12px 16px",
+                          boxShadow: "inset 0 2px 4px rgba(148,163,184,0.12)"
+                        }}
+                      />
+                    </div>
+
+                    <motion.button
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      disabled={!selectedFromAccount?.pinConfigured}
+                      className="btn w-100 fw-semibold"
+                      style={{
+                        background: selectedFromAccount?.pinConfigured
+                          ? "linear-gradient(135deg, #10b981, #059669)"
+                          : "#e2e8f0",
+                        color: selectedFromAccount?.pinConfigured ? "#fff" : "#64748b",
+                        padding: "14px",
+                        borderRadius: "14px",
+                        border: "none",
+                        boxShadow: selectedFromAccount?.pinConfigured
+                          ? "0 10px 24px rgba(16, 185, 129, 0.28)"
+                          : "none"
+                      }}
+                    >
+                      Transfer Now
+                    </motion.button>
+                  </form>
+                </div>
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
 
@@ -464,20 +675,20 @@ function Transfer() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="p-3 text-center mt-3"
+            className="mt-4"
             style={{
-              background: isSuccessMessage ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
+              background: isSuccessMessage ? "rgba(16, 185, 129, 0.12)" : "rgba(239, 68, 68, 0.1)",
               color: isSuccessMessage ? "#047857" : "#b91c1c",
-              border: `1px solid ${isSuccessMessage ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)"}`,
-              borderRadius: "12px",
-              fontSize: "14px",
-              fontWeight: "500"
+              border: `1px solid ${isSuccessMessage ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.18)"}`,
+              borderRadius: "16px",
+              padding: "14px 18px",
+              fontWeight: 500
             }}
           >
             {message}
           </motion.div>
         ) : null}
-      </motion.div>
+      </div>
     </div>
   );
 }

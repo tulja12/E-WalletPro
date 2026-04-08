@@ -7,6 +7,7 @@ public record BankAccountResponse(
         String bankName,
         String cardNumber,
         String accountHolder,
-        BigDecimal balance
+        BigDecimal balance,
+        boolean pinConfigured
 ) {
 }

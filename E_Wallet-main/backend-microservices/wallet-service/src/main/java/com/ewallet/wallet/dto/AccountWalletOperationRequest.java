@@ -10,6 +10,8 @@ public record AccountWalletOperationRequest(
         Long userId,
         @NotNull(message = "Account id is required")
         Long accountId,
+        @NotNull(message = "PIN is required")
+        String pin,
         @NotNull(message = "Amount is required")
         @DecimalMin(value = "0.01", message = "Amount must be greater than zero")
         BigDecimal amount

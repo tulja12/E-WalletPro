@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jms.JmsException;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.jms.core.JmsTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,15 +39,18 @@ public class WalletService {
     private final BankAccountRepository bankAccountRepository;
     private final JmsTemplate jmsTemplate;
     private final ObjectMapper objectMapper;
+    private final PasswordEncoder passwordEncoder;
 
     public WalletService(WalletRepository walletRepository,
                          BankAccountRepository bankAccountRepository,
                          JmsTemplate jmsTemplate,
-                         ObjectMapper objectMapper) {
+                         ObjectMapper objectMapper,
+                         PasswordEncoder passwordEncoder) {
         this.walletRepository = walletRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.jmsTemplate = jmsTemplate;
         this.objectMapper = objectMapper;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public WalletEntity getOrCreateWallet(Long userId) {
@@ -75,6 +79,7 @@ public class WalletService {
         entity.setBankName(requiredText(request.bankName(), "Bank name is required"));
         entity.setCardNumber(normalizeCardNumber(request.cardNumber()));
         entity.setAccountHolder(requiredText(request.accountHolder(), "Account holder is required"));
+        entity.setPinHash(passwordEncoder.encode(normalizePin(request.pin(), true)));
         entity.setBalance(normalizeAmount(request.balance()));
         return toAccountResponse(bankAccountRepository.save(entity));
     }
@@ -85,6 +90,9 @@ public class WalletService {
         entity.setBankName(requiredText(request.bankName(), "Bank name is required"));
         entity.setCardNumber(normalizeCardNumber(request.cardNumber()));
         entity.setAccountHolder(requiredText(request.accountHolder(), "Account holder is required"));
+        if (request.pin() != null && !request.pin().trim().isEmpty()) {
+            entity.setPinHash(passwordEncoder.encode(normalizePin(request.pin(), true)));
+        }
         entity.setBalance(normalizeAmount(request.balance()));
         return toAccountResponse(bankAccountRepository.save(entity));
     }
@@ -108,6 +116,7 @@ public class WalletService {
     public WalletOperationResponse addFromAccount(AccountWalletOperationRequest request) {
         BigDecimal amount = positiveAmount(request.amount());
         BankAccountEntity account = ownedAccount(request.userId(), request.accountId());
+        verifyAccountPin(account, request.pin());
         if (account.getBalance().compareTo(amount) < 0) {
             throw ApiException.badRequest("Insufficient bank balance");
         }
@@ -144,6 +153,7 @@ public class WalletService {
         }
         BankAccountEntity from = ownedAccount(request.userId(), request.fromAccountId());
         BankAccountEntity to = ownedAccount(request.userId(), request.toAccountId());
+        verifyAccountPin(from, request.pin());
         if (from.getBalance().compareTo(amount) < 0) {
             throw ApiException.badRequest("Insufficient bank balance");
         }
@@ -231,13 +241,37 @@ public class WalletService {
         return digits;
     }
 
+    private String normalizePin(String pin, boolean required) {
+        String normalized = pin == null ? "" : pin.trim();
+        if (normalized.isEmpty()) {
+            if (required) {
+                throw ApiException.badRequest("Account PIN is required");
+            }
+            return "";
+        }
+        if (normalized.length() != 4 || !normalized.chars().allMatch(Character::isDigit)) {
+            throw ApiException.badRequest("Account PIN must contain exactly 4 digits");
+        }
+        return normalized;
+    }
+
+    private void verifyAccountPin(BankAccountEntity account, String rawPin) {
+        if (account.getPinHash() == null || account.getPinHash().isBlank()) {
+            throw ApiException.badRequest("Set a PIN for this bank account before using it");
+        }
+        if (!passwordEncoder.matches(normalizePin(rawPin, true), account.getPinHash())) {
+            throw ApiException.badRequest("Invalid account PIN");
+        }
+    }
+
     private BankAccountResponse toAccountResponse(BankAccountEntity entity) {
         return new BankAccountResponse(
                 entity.getId(),
                 entity.getBankName(),
                 entity.getCardNumber(),
                 entity.getAccountHolder(),
-                entity.getBalance()
+                entity.getBalance(),
+                entity.getPinHash() != null && !entity.getPinHash().isBlank()
         );
     }
 

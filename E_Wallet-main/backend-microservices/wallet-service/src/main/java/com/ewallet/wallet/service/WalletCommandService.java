@@ -45,7 +45,7 @@ public class WalletCommandService {
 
     public Map<String, Object> addFromAccount(Long userId, AccountAmountRequest request) {
         WalletOperationResponse response = walletService.addFromAccount(
-                new AccountWalletOperationRequest(userId, request.accountId(), request.amount())
+                new AccountWalletOperationRequest(userId, request.accountId(), request.pin(), request.amount())
         );
         return Map.of(
                 "message", "Wallet funded successfully",
@@ -55,7 +55,7 @@ public class WalletCommandService {
 
     public Map<String, Object> withdraw(Long userId, AccountAmountRequest request) {
         WalletOperationResponse response = walletService.withdraw(
-                new AccountWalletOperationRequest(userId, request.accountId(), request.amount())
+                new AccountWalletOperationRequest(userId, request.accountId(), request.pin(), request.amount())
         );
         return Map.of(
                 "message", "Withdrawal successful",
@@ -65,7 +65,7 @@ public class WalletCommandService {
 
     public Map<String, Object> selfTransfer(Long userId, SelfTransferRequest request) {
         walletService.selfTransfer(
-                new SelfTransferOperationRequest(userId, request.fromAccountId(), request.toAccountId(), request.amount())
+                new SelfTransferOperationRequest(userId, request.fromAccountId(), request.toAccountId(), request.pin(), request.amount())
         );
         return Map.of("message", "Self-transfer successful");
     }

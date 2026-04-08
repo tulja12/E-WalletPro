@@ -1,12 +1,31 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { apiUrl, AUTH_API_BASE_URL } from "../config/api";
 import { readResponsePayload } from "../utils/api";
 
+const formatCurrency = (value) =>
+  `Rs ${Number(value || 0).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+
+const formatDateTime = (date) =>
+  new Date(date).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+const maskCard = (cardNumber) => `•••• ${String(cardNumber || "").slice(-4) || "0000"}`;
+
 function Dashboard() {
   const [balance, setBalance] = useState(0);
   const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [accounts, setAccounts] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [historyOffline, setHistoryOffline] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,17 +40,27 @@ function Dashboard() {
 
     const loadDashboard = async () => {
       try {
-        const [balanceResponse, mfaResponse] = await Promise.all([
+        const [balanceResponse, mfaResponse, accountsResponse, transactionsResponse] = await Promise.all([
           fetch(apiUrl("/wallet/balance"), {
             headers: { Authorization: `Bearer ${token}` }
           }),
           fetch(`${AUTH_API_BASE_URL}/mfa-status`, {
             headers: { Authorization: `Bearer ${token}` }
+          }),
+          fetch(apiUrl("/accounts"), {
+            headers: { Authorization: `Bearer ${token}` }
+          }),
+          fetch(apiUrl("/transactions"), {
+            headers: { Authorization: `Bearer ${token}` }
           })
         ]);
 
-        const balanceData = await readResponsePayload(balanceResponse);
-        const mfaData = await readResponsePayload(mfaResponse);
+        const [balanceData, mfaData, accountsData, transactionsData] = await Promise.all([
+          readResponsePayload(balanceResponse),
+          readResponsePayload(mfaResponse),
+          readResponsePayload(accountsResponse),
+          readResponsePayload(transactionsResponse)
+        ]);
 
         if (balanceResponse.ok) {
           setBalance(Number(balanceData.balance || 0));
@@ -40,8 +69,20 @@ function Dashboard() {
         if (mfaResponse.ok) {
           setMfaEnabled(Boolean(mfaData.enabled));
         }
+
+        if (accountsResponse.ok) {
+          setAccounts(Array.isArray(accountsData) ? accountsData : []);
+        }
+
+        if (transactionsResponse.ok) {
+          setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
+          setHistoryOffline(false);
+        } else if (transactionsResponse.status >= 500) {
+          setHistoryOffline(true);
+        }
       } catch (error) {
         console.error(error);
+        setHistoryOffline(true);
       }
     };
 
@@ -75,235 +116,452 @@ function Dashboard() {
         ? "Afternoon"
         : "Evening";
 
+  const username = localStorage.getItem("username") || "User";
+  const totalLinkedBalance = accounts.reduce((sum, account) => sum + Number(account.balance || 0), 0);
+  const protectedCards = accounts.filter((account) => account.pinConfigured).length;
+  const recentTransactions = useMemo(
+    () =>
+      [...transactions]
+        .sort((left, right) => new Date(right.dateTime).getTime() - new Date(left.dateTime).getTime())
+        .slice(0, 4),
+    [transactions]
+  );
+
   return (
-    <div style={{ padding: "40px 40px", minHeight: "100%" }}>
-      <div className="container" style={{ maxWidth: "1200px", margin: "0 auto" }}>
+    <div style={{ padding: "40px 20px", minHeight: "100%" }}>
+      <div className="container" style={{ maxWidth: "1220px", margin: "0 auto" }}>
         <motion.div
-          initial={{ opacity: 0, y: 15 }}
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
+          transition={{ duration: 0.45 }}
           style={{
-            background: "rgba(255, 255, 255, 0.94)",
-            backdropFilter: "blur(24px)",
-            WebkitBackdropFilter: "blur(24px)",
-            borderRadius: "24px",
-            padding: "40px",
-            boxShadow: "0 28px 60px rgba(148, 163, 184, 0.16)",
-            border: "1px solid #dbe4ef"
+            background: "linear-gradient(135deg, #0f172a 0%, #172554 55%, #0f766e 100%)",
+            borderRadius: "32px",
+            padding: "34px",
+            color: "#ffffff",
+            boxShadow: "0 30px 70px rgba(15, 23, 42, 0.28)",
+            overflow: "hidden",
+            position: "relative"
           }}
         >
-          <div className="mb-5">
-            <h2 className="fw-bold mb-1" style={{ color: "#0f172a", letterSpacing: "-0.5px" }}>
-              Good {greeting}, {localStorage.getItem("username") || "User"}!
-            </h2>
-            <p style={{ color: "#64748b", margin: 0 }}>
-              Your wallet summary and security status are shown below.
-            </p>
-          </div>
+          <div
+            style={{
+              position: "absolute",
+              top: "-90px",
+              right: "-20px",
+              width: "260px",
+              height: "260px",
+              borderRadius: "50%",
+              background: "rgba(59, 130, 246, 0.18)",
+              filter: "blur(18px)"
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: "-70px",
+              left: "-40px",
+              width: "220px",
+              height: "220px",
+              borderRadius: "50%",
+              background: "rgba(16, 185, 129, 0.18)",
+              filter: "blur(16px)"
+            }}
+          />
 
-          <div className="row g-4">
-            <div className="col-lg-7">
-              <motion.div
-                initial={{ opacity: 0, rotateY: -15, scale: 0.95 }}
-                animate={{ opacity: 1, rotateY: 0, scale: 1 }}
-                transition={{ duration: 0.6, type: "spring", stiffness: 100 }}
-                style={{
-                  minHeight: "240px",
-                  borderRadius: "24px",
-                  background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  padding: "35px",
-                  color: "white",
-                  position: "relative",
-                  overflow: "hidden",
-                  boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.2)"
-                }}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "-100px",
-                    left: "-50px",
-                    width: "250px",
-                    height: "250px",
-                    background: "linear-gradient(135deg, rgba(255,255,255,0.15), transparent)",
-                    borderRadius: "50%",
-                    filter: "blur(30px)",
-                    transform: "rotate(45deg)",
-                    pointerEvents: "none"
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: "-80px",
-                    right: "-20px",
-                    width: "200px",
-                    height: "200px",
-                    background: "linear-gradient(135deg, rgba(59, 130, 246, 0.2), transparent)",
-                    borderRadius: "50%",
-                    filter: "blur(40px)",
-                    pointerEvents: "none"
-                  }}
-                />
+          <div className="row g-4 align-items-end" style={{ position: "relative", zIndex: 1 }}>
+            <div className="col-lg-8">
+              <div style={{ fontSize: "12px", letterSpacing: "1.6px", textTransform: "uppercase", color: "#93c5fd" }}>
+                Good {greeting}
+              </div>
+              <h1 className="fw-bold mt-2 mb-2" style={{ letterSpacing: "-1px" }}>
+                Welcome back, {username}
+              </h1>
+              <p style={{ color: "rgba(255,255,255,0.8)", maxWidth: "620px", marginBottom: "26px" }}>
+                Track wallet health, linked card readiness, and recent process activity from one place.
+              </p>
 
-                <div className="d-flex justify-content-between align-items-center mb-4" style={{ position: "relative", zIndex: 2 }}>
-                  <svg width="45" height="32" viewBox="0 0 45 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="45" height="32" rx="6" fill="#fbbf24" />
-                    <path d="M12 0V32M33 0V32M0 12H45M0 20H45" stroke="#d97706" strokeWidth="1.5" />
-                  </svg>
-                  <div style={{ fontSize: "13px", letterSpacing: "2px", color: "#94a3b8" }}>E-WALLET PRO</div>
-                </div>
-
-                <div style={{ position: "relative", zIndex: 2, marginBottom: "30px" }}>
-                  <p className="mb-0" style={{ color: "#94a3b8", fontSize: "12px", textTransform: "uppercase", letterSpacing: "2px" }}>
-                    Available Balance
-                  </p>
-                  <h1
-                    className="fw-bold m-0"
-                    style={{
-                      fontSize: "3.5rem",
-                      letterSpacing: "-1px",
-                      fontFamily: "'Courier New', Courier, monospace",
-                      textShadow: "0 2px 10px rgba(0,0,0,0.5)"
-                    }}
-                  >
-                    Rs {balance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </h1>
-                </div>
-
-                <div className="d-flex justify-content-between align-items-end" style={{ position: "relative", zIndex: 2 }}>
-                  <div>
-                    <p className="mb-0" style={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "1.5px" }}>
-                      Card Holder
-                    </p>
-                    <p className="mb-0 fw-semibold" style={{ fontSize: "16px", letterSpacing: "2px", textTransform: "uppercase" }}>
-                      {localStorage.getItem("username") || "Valued User"}
-                    </p>
-                  </div>
-                  <div style={{ fontStyle: "italic", fontWeight: "900", fontSize: "24px", color: "rgba(255,255,255,0.9)", letterSpacing: "-1px" }}>
-                    E-Wallet<span style={{ color: "#3b82f6" }}>Pro</span>
-                  </div>
-                </div>
-              </motion.div>
-
-              <div className="d-flex gap-3 mt-4">
+              <div className="d-flex flex-wrap gap-3">
                 <Link
                   to="/addmoney"
-                  className="btn fw-semibold flex-grow-1"
+                  className="btn fw-semibold"
                   style={{
-                    background: "linear-gradient(135deg, #10b981, #059669)",
-                    color: "white",
+                    background: "#ffffff",
+                    color: "#0f172a",
                     borderRadius: "16px",
-                    padding: "14px",
-                    boxShadow: "0 8px 20px rgba(16, 185, 129, 0.3)"
+                    padding: "13px 18px",
+                    border: "none"
                   }}
                 >
-                  <i className="bi bi-wallet2 me-2" />
                   Add Funds
                 </Link>
                 <Link
                   to="/transfer"
-                  className="btn fw-semibold flex-grow-1"
+                  className="btn fw-semibold"
                   style={{
-                    background: "#eff6ff",
-                    color: "#1e293b",
+                    background: "rgba(255,255,255,0.08)",
+                    color: "#ffffff",
                     borderRadius: "16px",
-                    padding: "14px",
-                    border: "1px solid #bfdbfe"
+                    padding: "13px 18px",
+                    border: "1px solid rgba(255,255,255,0.14)"
                   }}
                 >
-                  <i className="bi bi-send-fill me-2" />
                   Transfer Money
+                </Link>
+                <Link
+                  to="/accounts"
+                  className="btn fw-semibold"
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    color: "#ffffff",
+                    borderRadius: "16px",
+                    padding: "13px 18px",
+                    border: "1px solid rgba(255,255,255,0.14)"
+                  }}
+                >
+                  Manage Cards
                 </Link>
               </div>
             </div>
 
-            <div className="col-lg-5">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+            <div className="col-lg-4">
+              <div
                 style={{
+                  background: "rgba(255,255,255,0.08)",
                   borderRadius: "24px",
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  padding: "30px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  boxShadow: "0 16px 36px rgba(148, 163, 184, 0.12)",
-                  minHeight: "100%"
+                  padding: "24px",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  backdropFilter: "blur(10px)"
                 }}
               >
-                <div>
-                  <div className="d-flex align-items-center mb-3">
-                    <div
-                      style={{
-                        width: "45px",
-                        height: "45px",
-                        borderRadius: "12px",
-                        background: mfaEnabled ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginRight: "16px"
-                      }}
-                    >
-                      <span className="fs-5">{mfaEnabled ? "Secure" : "Alert"}</span>
-                    </div>
-                    <div>
-                      <h5 className="fw-bold m-0" style={{ color: "#0f172a", letterSpacing: "-0.5px" }}>
-                        Global Security
-                      </h5>
-                      <span style={{ fontSize: "12px", color: mfaEnabled ? "#34d399" : "#f59e0b" }}>
-                        {mfaEnabled ? "Active and protected" : "Protection recommended"}
-                      </span>
-                    </div>
-                  </div>
-                  <p style={{ color: "#64748b", fontSize: "14px", lineHeight: "1.6" }}>
-                    {mfaEnabled
-                      ? "Your payments are protected by two-factor authentication."
-                      : "Enable two-factor authentication to reduce the risk of unauthorized access."}
-                  </p>
+                <div style={{ color: "#cbd5e1", fontSize: "12px", textTransform: "uppercase", letterSpacing: "1.2px" }}>
+                  Available Wallet Balance
                 </div>
-
-                <div className="mt-2">
-                  {mfaEnabled ? (
-                    <button
-                      onClick={handleDisableMFA}
-                      className="btn w-100 fw-semibold"
-                      style={{
-                        background: "rgba(239, 68, 68, 0.1)",
-                        border: "1px solid rgba(239, 68, 68, 0.2)",
-                        color: "#f87171",
-                        borderRadius: "14px",
-                        padding: "12px"
-                      }}
-                    >
-                      Disable MFA
-                    </button>
-                  ) : (
-                    <Link
-                      to="/mfa-setup"
-                      className="btn w-100 fw-semibold"
-                      style={{
-                        background: "linear-gradient(135deg, #f59e0b, #d97706)",
-                        border: "none",
-                        color: "white",
-                        borderRadius: "14px",
-                        boxShadow: "0 8px 20px rgba(245, 158, 11, 0.3)",
-                        padding: "12px"
-                      }}
-                    >
-                      Setup Protection
-                    </Link>
-                  )}
+                <div className="fw-bold mt-2" style={{ fontSize: "42px", letterSpacing: "-1px" }}>
+                  {formatCurrency(balance)}
                 </div>
-              </motion.div>
+                <div className="mt-3" style={{ color: "#cbd5e1", fontSize: "14px" }}>
+                  Ready for wallet payments, top-ups, and internal transfers.
+                </div>
+              </div>
             </div>
           </div>
         </motion.div>
+
+        <div className="row g-4 mt-1">
+          {[
+            {
+              label: "Linked Cards",
+              value: accounts.length,
+              detail: `${protectedCards}/${accounts.length || 0} PIN protected`,
+              accent: "#2563eb",
+              bg: "#eff6ff"
+            },
+            {
+              label: "Total Linked Balance",
+              value: formatCurrency(totalLinkedBalance),
+              detail: "Across all saved bank cards",
+              accent: "#059669",
+              bg: "#ecfdf5"
+            },
+            {
+              label: "Security Status",
+              value: mfaEnabled ? "MFA On" : "MFA Off",
+              detail: mfaEnabled ? "Account protection active" : "Enable MFA for stronger login security",
+              accent: mfaEnabled ? "#059669" : "#d97706",
+              bg: mfaEnabled ? "#ecfdf5" : "#fffbeb"
+            }
+          ].map((card) => (
+            <div className="col-md-4" key={card.label}>
+              <div
+                style={{
+                  background: "#ffffff",
+                  borderRadius: "24px",
+                  padding: "24px",
+                  border: "1px solid #dbe4ef",
+                  boxShadow: "0 18px 40px rgba(148, 163, 184, 0.14)",
+                  height: "100%"
+                }}
+              >
+                <div
+                  style={{
+                    width: "44px",
+                    height: "44px",
+                    borderRadius: "14px",
+                    background: card.bg,
+                    color: card.accent,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 800,
+                    marginBottom: "16px"
+                  }}
+                >
+                  {String(card.label).charAt(0)}
+                </div>
+                <div style={{ color: "#64748b", fontSize: "13px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                  {card.label}
+                </div>
+                <div className="fw-bold mt-2" style={{ color: "#0f172a", fontSize: "28px", letterSpacing: "-0.6px" }}>
+                  {card.value}
+                </div>
+                <div className="mt-2" style={{ color: "#64748b", fontSize: "14px" }}>
+                  {card.detail}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="row g-4 mt-1">
+          <div className="col-lg-7">
+            <div
+              style={{
+                background: "#ffffff",
+                borderRadius: "28px",
+                padding: "28px",
+                border: "1px solid #dbe4ef",
+                boxShadow: "0 24px 56px rgba(148, 163, 184, 0.16)",
+                height: "100%"
+              }}
+            >
+              <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+                <div>
+                  <h4 className="fw-bold mb-1" style={{ color: "#0f172a" }}>Linked Cards</h4>
+                  <p style={{ color: "#64748b", margin: 0, fontSize: "14px" }}>
+                    Visible balances and PIN readiness for each saved card.
+                  </p>
+                </div>
+                <Link to="/accounts" style={{ color: "#2563eb", fontWeight: 600, textDecoration: "none" }}>
+                  View all
+                </Link>
+              </div>
+
+              {accounts.length === 0 ? (
+                <div
+                  style={{
+                    borderRadius: "22px",
+                    border: "1px dashed #cbd5e1",
+                    background: "#f8fafc",
+                    padding: "28px",
+                    textAlign: "center"
+                  }}
+                >
+                  <h6 className="fw-semibold mb-2" style={{ color: "#0f172a" }}>No cards linked yet</h6>
+                  <p style={{ color: "#64748b", marginBottom: "12px" }}>
+                    Add a bank card to start wallet funding and self-transfers.
+                  </p>
+                  <Link to="/accounts">Open linked cards</Link>
+                </div>
+              ) : (
+                <div className="d-flex flex-column gap-3">
+                  {accounts.slice(0, 3).map((account) => (
+                    <div
+                      key={account.id}
+                      style={{
+                        borderRadius: "22px",
+                        border: "1px solid #e2e8f0",
+                        background: "#f8fafc",
+                        padding: "18px 20px"
+                      }}
+                    >
+                      <div className="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                          <div className="fw-semibold" style={{ color: "#0f172a" }}>
+                            {account.bankName}
+                          </div>
+                          <div style={{ color: "#64748b", fontSize: "14px", marginTop: "4px" }}>
+                            {maskCard(account.cardNumber)} • {account.accountHolder}
+                          </div>
+                        </div>
+                        <span
+                          style={{
+                            borderRadius: "999px",
+                            padding: "6px 10px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            background: account.pinConfigured ? "rgba(16, 185, 129, 0.12)" : "rgba(245, 158, 11, 0.12)",
+                            color: account.pinConfigured ? "#047857" : "#b45309",
+                            border: `1px solid ${account.pinConfigured ? "rgba(16, 185, 129, 0.18)" : "rgba(245, 158, 11, 0.18)"}`
+                          }}
+                        >
+                          {account.pinConfigured ? "PIN Ready" : "PIN Missing"}
+                        </span>
+                      </div>
+
+                      <div className="d-flex justify-content-between align-items-end mt-3">
+                        <div style={{ color: "#64748b", fontSize: "13px" }}>Available card balance</div>
+                        <div className="fw-bold" style={{ color: "#0f172a", fontSize: "20px" }}>
+                          {formatCurrency(account.balance)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="col-lg-5">
+            <div
+              style={{
+                background: "#ffffff",
+                borderRadius: "28px",
+                padding: "28px",
+                border: "1px solid #dbe4ef",
+                boxShadow: "0 24px 56px rgba(148, 163, 184, 0.16)",
+                marginBottom: "24px"
+              }}
+            >
+              <div className="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                  <h4 className="fw-bold mb-1" style={{ color: "#0f172a" }}>Security</h4>
+                  <p style={{ color: "#64748b", margin: 0, fontSize: "14px" }}>
+                    Login protection and linked-card readiness.
+                  </p>
+                </div>
+                <span
+                  style={{
+                    borderRadius: "999px",
+                    padding: "6px 10px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    background: mfaEnabled ? "rgba(16, 185, 129, 0.12)" : "rgba(245, 158, 11, 0.12)",
+                    color: mfaEnabled ? "#047857" : "#b45309"
+                  }}
+                >
+                  {mfaEnabled ? "Protected" : "Attention"}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  borderRadius: "20px",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  padding: "18px"
+                }}
+              >
+                <div className="fw-semibold" style={{ color: "#0f172a" }}>
+                  {mfaEnabled ? "Multi-factor authentication is enabled." : "Multi-factor authentication is disabled."}
+                </div>
+                <div style={{ color: "#64748b", fontSize: "14px", marginTop: "6px" }}>
+                  {mfaEnabled
+                    ? "Your account has an extra verification step during sign-in."
+                    : "Enable MFA to reduce the risk of unauthorized wallet access."}
+                </div>
+              </div>
+
+              <div className="d-flex gap-3 mt-3">
+                {mfaEnabled ? (
+                  <button
+                    onClick={handleDisableMFA}
+                    className="btn w-100 fw-semibold"
+                    style={{
+                      background: "rgba(239, 68, 68, 0.1)",
+                      border: "1px solid rgba(239, 68, 68, 0.18)",
+                      color: "#b91c1c",
+                      borderRadius: "14px",
+                      padding: "12px"
+                    }}
+                  >
+                    Disable MFA
+                  </button>
+                ) : (
+                  <Link
+                    to="/mfa-setup"
+                    className="btn w-100 fw-semibold"
+                    style={{
+                      background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                      border: "none",
+                      color: "white",
+                      borderRadius: "14px",
+                      padding: "12px"
+                    }}
+                  >
+                    Enable MFA
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "#ffffff",
+                borderRadius: "28px",
+                padding: "28px",
+                border: "1px solid #dbe4ef",
+                boxShadow: "0 24px 56px rgba(148, 163, 184, 0.16)"
+              }}
+            >
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <h4 className="fw-bold mb-1" style={{ color: "#0f172a" }}>Recent Activity</h4>
+                  <p style={{ color: "#64748b", margin: 0, fontSize: "14px" }}>
+                    Quick snapshot of the latest wallet records.
+                  </p>
+                </div>
+                <Link to="/transactions" style={{ color: "#2563eb", fontWeight: 600, textDecoration: "none" }}>
+                  Open history
+                </Link>
+              </div>
+
+              {historyOffline ? (
+                <div
+                  style={{
+                    borderRadius: "18px",
+                    background: "rgba(245, 158, 11, 0.12)",
+                    border: "1px solid rgba(245, 158, 11, 0.18)",
+                    padding: "16px",
+                    color: "#b45309"
+                  }}
+                >
+                  History offline. New entries will appear here after sync resumes.
+                </div>
+              ) : recentTransactions.length === 0 ? (
+                <div
+                  style={{
+                    borderRadius: "18px",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    padding: "18px",
+                    color: "#64748b"
+                  }}
+                >
+                  No recent activity yet.
+                </div>
+              ) : (
+                <div className="d-flex flex-column gap-3">
+                  {recentTransactions.map((transaction) => (
+                    <div
+                      key={transaction.id}
+                      style={{
+                        borderRadius: "18px",
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                        padding: "16px"
+                      }}
+                    >
+                      <div className="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                          <div className="fw-semibold" style={{ color: "#0f172a" }}>
+                            {transaction.summary}
+                          </div>
+                          <div style={{ color: "#64748b", fontSize: "13px", marginTop: "4px" }}>
+                            {transaction.detailLine}
+                          </div>
+                        </div>
+                        <div style={{ color: "#64748b", fontSize: "12px", flexShrink: 0 }}>
+                          {formatDateTime(transaction.dateTime)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

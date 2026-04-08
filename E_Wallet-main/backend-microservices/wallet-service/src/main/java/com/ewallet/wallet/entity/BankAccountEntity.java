@@ -32,6 +32,9 @@ public class BankAccountEntity {
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal balance;
 
+    @Column(length = 100)
+    private String pinHash;
+
     public Long getId() {
         return id;
     }
@@ -74,5 +77,13 @@ public class BankAccountEntity {
 
     public void setBalance(BigDecimal balance) {
         this.balance = balance;
+    }
+
+    public String getPinHash() {
+        return pinHash;
+    }
+
+    public void setPinHash(String pinHash) {
+        this.pinHash = pinHash;
     }
 }

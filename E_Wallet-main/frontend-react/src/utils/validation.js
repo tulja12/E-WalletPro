@@ -2,6 +2,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9]{10,15}$/;
 const USERNAME_PATTERN = /^[A-Za-z0-9._-]{3,30}$/;
 const CARD_PATTERN = /^[0-9]{12,19}$/;
+const PIN_PATTERN = /^[0-9]{4}$/;
 const OTP_PATTERN = /^[0-9]{6}$/;
 const LETTERS_AND_SPACES_PATTERN = /^[A-Za-z ]+$/;
 
@@ -15,6 +16,10 @@ export function sanitizeCardNumber(value) {
 
 export function sanitizePhoneNumber(value) {
   return value.replace(/\D/g, "").slice(0, 15);
+}
+
+export function sanitizePin(value) {
+  return value.replace(/\D/g, "").slice(0, 4);
 }
 
 export function sanitizeLettersOnly(value) {
@@ -93,6 +98,14 @@ export function validateBankAccountForm(form) {
     return "Account holder can contain only letters and spaces";
   }
 
+  if ((!form.id || form.pinConfigured === false) && !form.pin.trim()) {
+    return "Enter a 4-digit account PIN";
+  }
+
+  if (form.pin.trim() && !PIN_PATTERN.test(form.pin.trim())) {
+    return "Account PIN must be exactly 4 digits";
+  }
+
   const amountError = validateAmount(form.balance, "Initial balance", { allowZero: true });
   return amountError;
 }
@@ -149,6 +162,18 @@ export function validateSelfTransfer({ fromAccount, toAccount, amount }) {
   }
 
   return validateAmount(amount);
+}
+
+export function validateAccountPin(value, label = "Account PIN") {
+  if (!value.trim()) {
+    return `${label} is required`;
+  }
+
+  if (!PIN_PATTERN.test(value.trim())) {
+    return `${label} must be exactly 4 digits`;
+  }
+
+  return "";
 }
 
 export function validateEmail(value) {

@@ -2,6 +2,7 @@ package com.ewallet.user.controller;
 
 import com.ewallet.user.dto.InternalUserResponse;
 import com.ewallet.user.dto.MfaUpdateRequest;
+import com.ewallet.user.dto.PasswordResetRequest;
 import com.ewallet.user.dto.SignupRequest;
 import com.ewallet.user.dto.UserLookupResponse;
 import com.ewallet.user.dto.UserRegistrationResponse;
@@ -42,6 +43,13 @@ public class InternalUserController {
     public ResponseEntity<InternalUserResponse> updateMfa(@PathVariable Long userId,
                                                           @RequestBody MfaUpdateRequest request) {
         return ResponseEntity.ok(userService.updateMfa(userId, request));
+    }
+
+    @PutMapping("/{userId}/password-reset")
+    public ResponseEntity<Void> resetPassword(@PathVariable Long userId,
+                                              @Valid @RequestBody PasswordResetRequest request) {
+        userService.resetPassword(userId, request);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/lookup")

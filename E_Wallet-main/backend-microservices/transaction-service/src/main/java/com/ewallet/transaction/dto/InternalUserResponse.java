@@ -6,7 +6,10 @@ public record InternalUserResponse(
         String email,
         String phone,
         String username,
-        String role,
-        boolean blocked
+        String passkey,
+        boolean mfaEnabled,
+        String mfaSecret,
+        boolean blocked,
+        String role
 ) {
 }

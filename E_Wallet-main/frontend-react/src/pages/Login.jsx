@@ -111,6 +111,12 @@ function Login() {
               </button>
             </div>
 
+            <div className="auth-inline-actions">
+              <Link to="/forgot-password" className="auth-text-link">
+                Forgot password?
+              </Link>
+            </div>
+
             <button
                 type="submit"
                 className="auth-btn"

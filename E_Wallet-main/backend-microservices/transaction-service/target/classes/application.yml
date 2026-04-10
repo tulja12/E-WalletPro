@@ -16,17 +16,6 @@ spring:
     broker-url: tcp://${ACTIVEMQ_HOST:localhost}:${ACTIVEMQ_PORT:61616}
     user: ${ACTIVEMQ_USERNAME:}
     password: ${ACTIVEMQ_PASSWORD:}
-  mail:
-    host: ${SPRING_MAIL_HOST:}
-    port: ${SPRING_MAIL_PORT:587}
-    username: ${SPRING_MAIL_USERNAME:}
-    password: ${SPRING_MAIL_PASSWORD:}
-    properties:
-      mail:
-        smtp:
-          auth: ${SPRING_MAIL_SMTP_AUTH:true}
-          starttls:
-            enable: ${SPRING_MAIL_SMTP_STARTTLS:true}
   devtools:
     restart:
       enabled: true
@@ -39,10 +28,6 @@ eureka:
 security:
   jwt:
     secret: ${JWT_SECRET:ewallet-secret-key-for-jwt-signing-12345}
-
-app:
-  mail:
-    from: ${APP_MAIL_FROM:no-reply@ewallet.local}
 
 management:
   endpoints:

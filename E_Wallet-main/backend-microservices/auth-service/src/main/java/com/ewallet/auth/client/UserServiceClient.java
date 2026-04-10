@@ -2,6 +2,7 @@ package com.ewallet.auth.client;
 
 import com.ewallet.auth.dto.InternalUserDto;
 import com.ewallet.auth.dto.MfaUpdateRequest;
+import com.ewallet.auth.dto.PasswordResetRequest;
 import com.ewallet.auth.dto.SignupRequest;
 import com.ewallet.auth.dto.UserRegistrationResponse;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -22,4 +23,7 @@ public interface UserServiceClient {
 
     @PutMapping("/internal/users/{userId}/mfa")
     InternalUserDto updateMfa(@PathVariable("userId") Long userId, @RequestBody MfaUpdateRequest request);
+
+    @PutMapping("/internal/users/{userId}/password-reset")
+    void resetPassword(@PathVariable("userId") Long userId, @RequestBody PasswordResetRequest request);
 }

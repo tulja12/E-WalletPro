@@ -16,24 +16,40 @@ import java.util.List;
 @Service
 public class TokenService {
 
+    public static final String ACCESS_TOKEN_TYPE = "ACCESS";
+    public static final String MFA_TEMP_TOKEN_TYPE = "MFA_TEMP";
+    public static final String PASSWORD_RESET_MFA_TOKEN_TYPE = "PASSWORD_RESET_MFA";
+    public static final String PASSWORD_RESET_TOKEN_TYPE = "PASSWORD_RESET";
+
     private final SecretKey signingKey;
     private final long accessTokenExpirationMs;
     private final long mfaTokenExpirationMs;
+    private final long passwordResetTokenExpirationMs;
 
     public TokenService(@Value("${security.jwt.secret}") String secret,
                         @Value("${security.jwt.access-token-expiration-ms}") long accessTokenExpirationMs,
-                        @Value("${security.jwt.mfa-token-expiration-ms}") long mfaTokenExpirationMs) {
+                        @Value("${security.jwt.mfa-token-expiration-ms}") long mfaTokenExpirationMs,
+                        @Value("${security.jwt.password-reset-token-expiration-ms}") long passwordResetTokenExpirationMs) {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessTokenExpirationMs = accessTokenExpirationMs;
         this.mfaTokenExpirationMs = mfaTokenExpirationMs;
+        this.passwordResetTokenExpirationMs = passwordResetTokenExpirationMs;
     }
 
     public String generateAccessToken(InternalUserPrincipal user) {
-        return generateToken(user, accessTokenExpirationMs, "ACCESS");
+        return generateToken(user, accessTokenExpirationMs, ACCESS_TOKEN_TYPE);
     }
 
     public String generateMfaToken(InternalUserPrincipal user) {
-        return generateToken(user, mfaTokenExpirationMs, "MFA_TEMP");
+        return generateToken(user, mfaTokenExpirationMs, MFA_TEMP_TOKEN_TYPE);
+    }
+
+    public String generatePasswordResetChallengeToken(InternalUserPrincipal user) {
+        return generateToken(user, mfaTokenExpirationMs, PASSWORD_RESET_MFA_TOKEN_TYPE);
+    }
+
+    public String generatePasswordResetToken(InternalUserPrincipal user) {
+        return generateToken(user, passwordResetTokenExpirationMs, PASSWORD_RESET_TOKEN_TYPE);
     }
 
     public Claims parseClaims(String token) {

@@ -1,27 +1,17 @@
 package com.ewallet.transaction.service;
 
 import com.ewallet.transaction.client.UserServiceClient;
-import com.ewallet.transaction.dto.InternalUserResponse;
 import com.ewallet.transaction.dto.TransactionHistoryItemDto;
 import com.ewallet.transaction.dto.UserLookupResponse;
 import com.ewallet.transaction.entity.TransactionRecord;
-import com.ewallet.transaction.exception.ApiException;
 import com.ewallet.transaction.event.WalletOperationEvent;
 import com.ewallet.transaction.repository.TransactionRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.FeignException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.jms.annotation.JmsListener;
-import org.springframework.mail.MailException;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-import java.text.NumberFormat;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -33,30 +23,16 @@ import java.util.stream.Collectors;
 @Service
 public class TransactionHistoryService {
 
-    private static final DateTimeFormatter EMAIL_DATE_FORMAT =
-            DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a");
-    private static final NumberFormat AMOUNT_FORMAT =
-            NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
-
     private final TransactionRepository transactionRepository;
     private final UserServiceClient userServiceClient;
-    private final JavaMailSender mailSender;
-    private final String mailHost;
-    private final String fromAddress;
     private final ObjectMapper objectMapper;
 
     public TransactionHistoryService(TransactionRepository transactionRepository,
                                      UserServiceClient userServiceClient,
-                                     JavaMailSender mailSender,
-                                     ObjectMapper objectMapper,
-                                     @Value("${spring.mail.host:}") String mailHost,
-                                     @Value("${app.mail.from:${spring.mail.username:no-reply@ewallet.local}}") String fromAddress) {
+                                     ObjectMapper objectMapper) {
         this.transactionRepository = transactionRepository;
         this.userServiceClient = userServiceClient;
-        this.mailSender = mailSender;
         this.objectMapper = objectMapper;
-        this.mailHost = mailHost;
-        this.fromAddress = fromAddress;
     }
 
     @JmsListener(destination = com.ewallet.transaction.config.MessagingConfig.WALLET_OPERATION_QUEUE)
@@ -94,36 +70,6 @@ public class TransactionHistoryService {
         return records.stream()
                 .map(record -> mapRecord(userId, record, usersById))
                 .toList();
-    }
-
-    public Map<String, String> emailHistory(Long userId, String username) {
-        InternalUserResponse user;
-        try {
-            user = userServiceClient.getByUsername(username);
-        } catch (FeignException ex) {
-            throw translateFeignException(ex, "User details are unavailable right now.");
-        }
-        if (!hasText(user.email())) {
-            throw ApiException.badRequest("Add an email address to your profile before requesting transaction history.");
-        }
-        if (!hasText(mailHost)) {
-            throw ApiException.badGateway("Email service is not configured on the server.");
-        }
-
-        List<TransactionHistoryItemDto> history = getHistoryForUser(userId);
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(hasText(fromAddress) ? fromAddress : "no-reply@ewallet.local");
-        message.setTo(user.email());
-        message.setSubject("Your E-Wallet transaction history");
-        message.setText(buildEmailBody(user, history));
-
-        try {
-            mailSender.send(message);
-        } catch (MailException ex) {
-            throw ApiException.badGateway("Unable to send the transaction history email right now.");
-        }
-
-        return Map.of("message", "Transaction history sent to " + user.email());
     }
 
     private TransactionHistoryItemDto mapRecord(Long currentUserId,
@@ -241,31 +187,6 @@ public class TransactionHistoryService {
         return item;
     }
 
-    private String buildEmailBody(InternalUserResponse user, List<TransactionHistoryItemDto> history) {
-        String recipientName = hasText(user.name()) ? user.name() : user.username();
-        StringBuilder body = new StringBuilder();
-        body.append("Hello ").append(recipientName).append(",\n\n");
-        body.append("Here is your E-Wallet transaction history.\n\n");
-
-        if (history.isEmpty()) {
-            body.append("There are no transactions in your history yet.\n\n");
-        } else {
-            int index = 1;
-            for (TransactionHistoryItemDto item : history) {
-                body.append(index++).append(". ").append(item.getSummary()).append("\n");
-                body.append("   Amount: ").append(formatAmount(item.getAmount())).append("\n");
-                body.append("   Credit/Debit: ").append(item.getImpactLabel()).append("\n");
-                body.append("   From: ").append(item.getFromLabel()).append("\n");
-                body.append("   To: ").append(item.getToLabel()).append("\n");
-                body.append("   Status: ").append(item.getStatus()).append("\n");
-                body.append("   Date: ").append(formatDate(item.getDateTime())).append("\n\n");
-            }
-        }
-
-        body.append("This is an automated email from E-Wallet.");
-        return body.toString();
-    }
-
     private String resolveUserLabel(Long userId, Map<Long, UserLookupResponse> usersById) {
         if (userId == null) {
             return "Unknown";
@@ -307,14 +228,6 @@ public class TransactionHistoryService {
         return builder.toString();
     }
 
-    private String formatAmount(java.math.BigDecimal amount) {
-        return AMOUNT_FORMAT.format(amount == null ? java.math.BigDecimal.ZERO : amount);
-    }
-
-    private String formatDate(LocalDateTime dateTime) {
-        return dateTime == null ? "NA" : dateTime.format(EMAIL_DATE_FORMAT);
-    }
-
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
     }
@@ -334,25 +247,5 @@ public class TransactionHistoryService {
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Received an invalid ActiveMQ event payload.", ex);
         }
-    }
-
-    private ApiException translateFeignException(FeignException ex, String fallbackMessage) {
-        HttpStatus status = HttpStatus.resolve(ex.status());
-        String message = fallbackMessage;
-
-        try {
-            if (hasText(ex.contentUTF8())) {
-                com.fasterxml.jackson.databind.JsonNode node = objectMapper.readTree(ex.contentUTF8());
-                if (node.hasNonNull("message")) {
-                    message = node.get("message").asText();
-                }
-            }
-        } catch (Exception ignored) {
-            if (hasText(ex.getMessage())) {
-                message = ex.getMessage();
-            }
-        }
-
-        return status == null ? ApiException.badGateway(message) : ApiException.withStatus(status, message);
     }
 }

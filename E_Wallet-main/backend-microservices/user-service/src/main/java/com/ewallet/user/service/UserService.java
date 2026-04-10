@@ -9,6 +9,7 @@ import com.ewallet.user.dto.ChangeEmailRequest;
 import com.ewallet.user.dto.ChangePasswordRequest;
 import com.ewallet.user.dto.InternalUserResponse;
 import com.ewallet.user.dto.MfaUpdateRequest;
+import com.ewallet.user.dto.PasswordResetRequest;
 import com.ewallet.user.dto.SignupRequest;
 import com.ewallet.user.dto.UserLookupResponse;
 import com.ewallet.user.dto.UserProfileResponse;
@@ -62,9 +63,13 @@ public class UserService {
     @Transactional
     public UserRegistrationResponse register(SignupRequest request) {
         String username = normalize(request.username());
+        String email = normalize(request.email());
         String password = normalize(request.passkey());
         if (username.isBlank()) {
             throw ApiException.badRequest("Username is required");
+        }
+        if (email.isBlank()) {
+            throw ApiException.badRequest("Email is required");
         }
         if (password.isBlank()) {
             throw ApiException.badRequest("Password is required");
@@ -72,10 +77,13 @@ public class UserService {
         if (userRepository.existsByUsername(username)) {
             throw ApiException.conflict("Username already exists");
         }
+        if (userRepository.existsByEmailIgnoreCase(email)) {
+            throw ApiException.conflict("Email already exists");
+        }
 
         UserEntity user = new UserEntity();
         user.setName(defaultString(request.name()));
-        user.setEmail(defaultString(request.email()));
+        user.setEmail(email);
         user.setPhone(defaultString(request.phone()));
         user.setUsername(username);
         user.setPasskey(passwordEncoder.encode(password));
@@ -94,6 +102,11 @@ public class UserService {
 
     @Transactional
     public UserEntity registerAdmin(UserEntity admin) {
+        String email = normalize(admin.getEmail());
+        if (!email.isBlank() && userRepository.existsByEmailIgnoreCase(email)) {
+            throw ApiException.conflict("Email already exists");
+        }
+        admin.setEmail(email);
         admin.setUsername(normalize(admin.getUsername()));
         admin.setPasskey(passwordEncoder.encode(defaultString(admin.getPasskey())));
         admin.setBlocked(false);
@@ -117,7 +130,12 @@ public class UserService {
     @Transactional
     public Map<String, String> changeEmail(String username, ChangeEmailRequest request) {
         UserEntity user = findByUsername(username);
-        user.setEmail(normalize(request.email()));
+        String email = normalize(request.email());
+        if (!email.equalsIgnoreCase(defaultString(user.getEmail()))
+                && userRepository.existsByEmailIgnoreCase(email)) {
+            throw ApiException.conflict("Email already exists");
+        }
+        user.setEmail(email);
         userRepository.save(user);
         return Map.of("message", "Email updated successfully");
     }
@@ -208,6 +226,16 @@ public class UserService {
         user.setMfaEnabled(request.enabled());
         user.setMfaSecret(request.secret());
         return toInternalResponse(userRepository.save(user));
+    }
+
+    @Transactional
+    public void resetPassword(Long userId, PasswordResetRequest request) {
+        UserEntity user = findById(userId);
+        if (passwordEncoder.matches(defaultString(request.newPassword()), user.getPasskey())) {
+            throw ApiException.badRequest("New password must be different from the current password");
+        }
+        user.setPasskey(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
     }
 
     public List<UserLookupResponse> lookupUsers(List<Long> userIds) {

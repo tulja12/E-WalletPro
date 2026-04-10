@@ -18,6 +18,7 @@ security:
     secret: ${JWT_SECRET:ewallet-secret-key-for-jwt-signing-12345}
     access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:3600000}
     mfa-token-expiration-ms: ${JWT_MFA_TOKEN_EXPIRATION_MS:600000}
+    password-reset-token-expiration-ms: ${JWT_PASSWORD_RESET_TOKEN_EXPIRATION_MS:600000}
 
 management:
   endpoints:

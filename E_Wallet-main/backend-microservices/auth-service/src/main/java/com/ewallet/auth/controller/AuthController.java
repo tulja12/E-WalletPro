@@ -1,8 +1,12 @@
 package com.ewallet.auth.controller;
 
 import com.ewallet.auth.dto.AuthResponse;
+import com.ewallet.auth.dto.ForgotPasswordRequest;
 import com.ewallet.auth.dto.LoginRequest;
 import com.ewallet.auth.dto.MfaVerificationRequest;
+import com.ewallet.auth.dto.PasswordResetChallengeResponse;
+import com.ewallet.auth.dto.PasswordResetRequest;
+import com.ewallet.auth.dto.PasswordResetVerificationResponse;
 import com.ewallet.auth.dto.SignupRequest;
 import com.ewallet.auth.service.AuthService;
 import jakarta.validation.Valid;
@@ -64,5 +68,24 @@ public class AuthController {
     public ResponseEntity<?> verifyOtp(@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
                                        @Valid @RequestBody MfaVerificationRequest request) {
         return authService.verifyOtp(authorizationHeader, request);
+    }
+
+    @PostMapping("/auth/forgot-password")
+    public ResponseEntity<PasswordResetChallengeResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        return authService.startForgotPassword(request);
+    }
+
+    @PostMapping("/auth/forgot-password/verify-otp")
+    public ResponseEntity<PasswordResetVerificationResponse> verifyForgotPasswordOtp(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @Valid @RequestBody MfaVerificationRequest request) {
+        return authService.verifyForgotPasswordOtp(authorizationHeader, request);
+    }
+
+    @PostMapping("/auth/forgot-password/reset")
+    public ResponseEntity<Map<String, String>> resetForgotPassword(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @Valid @RequestBody PasswordResetRequest request) {
+        return authService.resetForgotPassword(authorizationHeader, request);
     }
 }

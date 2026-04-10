@@ -5,6 +5,7 @@ import Signup from "./pages/Signup";
 import Success from "./pages/Success";
 import AddMoney from "./pages/AddMoney";
 import Dashboard from "./pages/Dashboard";
+import ForgotPassword from "./pages/ForgotPassword";
 import MFA from "./pages/MFA";
 import MFASetup from "./pages/MFASetup";
 import Transactions from "./pages/Transactions";
@@ -22,6 +23,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/success" element={<Success />} />

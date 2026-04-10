@@ -188,6 +188,20 @@ export function validateEmail(value) {
   return "";
 }
 
+export function validateForgotPasswordIdentityForm({ username, email }) {
+  const trimmedUsername = sanitizeUsername(username);
+
+  if (!trimmedUsername) {
+    return "Enter your username";
+  }
+
+  if (!USERNAME_PATTERN.test(trimmedUsername)) {
+    return "Enter a valid username";
+  }
+
+  return validateEmail(email);
+}
+
 export function validatePasswordChange({ currentPassword, newPassword, confirmPassword }) {
   if (!currentPassword || !newPassword || !confirmPassword) {
     return "Fill all password fields";
@@ -203,6 +217,22 @@ export function validatePasswordChange({ currentPassword, newPassword, confirmPa
 
   if (currentPassword === newPassword) {
     return "New password must be different from the current password";
+  }
+
+  return "";
+}
+
+export function validateForgotPasswordResetForm({ newPassword, confirmPassword }) {
+  if (!newPassword || !confirmPassword) {
+    return "Enter and confirm the new password";
+  }
+
+  if (newPassword.length < 8) {
+    return "New password must be at least 8 characters";
+  }
+
+  if (newPassword !== confirmPassword) {
+    return "Passwords do not match";
   }
 
   return "";

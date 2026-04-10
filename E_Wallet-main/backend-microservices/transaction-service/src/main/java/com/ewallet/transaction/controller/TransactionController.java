@@ -65,14 +65,6 @@ public class TransactionController {
         return ResponseEntity.ok(transactionHistoryService.getHistoryForUser(userId(authentication)));
     }
 
-    @PostMapping("/transactions/email-history")
-    public ResponseEntity<Map<String, String>> emailHistory(JwtAuthenticationToken authentication) {
-        return ResponseEntity.ok(transactionHistoryService.emailHistory(
-                userId(authentication),
-                authentication.getName()
-        ));
-    }
-
     private Long userId(JwtAuthenticationToken authentication) {
         Number userId = authentication.getToken().getClaim("userId");
         return userId.longValue();

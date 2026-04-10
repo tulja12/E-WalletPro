@@ -9,8 +9,6 @@ function Transactions() {
   const [message, setMessage] = useState("");
   const [historyNotice, setHistoryNotice] = useState("");
   const [loading, setLoading] = useState(true);
-  const [emailingHistory, setEmailingHistory] = useState(false);
-  const [notice, setNotice] = useState({ type: "", text: "" });
   const [selectedTransaction, setSelectedTransaction] = useState(null);
 
   const navigate = useNavigate();
@@ -69,32 +67,6 @@ function Transactions() {
       if (!silent) {
         setLoading(false);
       }
-    }
-  };
-
-  const sendHistoryEmail = async () => {
-    try {
-      setEmailingHistory(true);
-      setNotice({ type: "", text: "" });
-
-      const token = localStorage.getItem("token");
-      const response = await fetch(apiUrl("/transactions/email-history"), {
-        method: "POST",
-        headers: { Authorization: "Bearer " + token }
-      });
-
-      const data = await readResponsePayload(response);
-      setNotice({
-        type: response.ok ? "success" : "error",
-        text: extractErrorMessage(
-          data,
-          response.ok ? "Transaction history email sent." : "Failed to send transaction history email."
-        )
-      });
-    } catch (error) {
-      setNotice({ type: "error", text: "Unable to reach the transaction service." });
-    } finally {
-      setEmailingHistory(false);
     }
   };
 
@@ -177,26 +149,6 @@ function Transactions() {
             </h2>
 
           </div>
-
-          <button
-            className="btn fw-semibold"
-            onClick={sendHistoryEmail}
-            disabled={emailingHistory || loading || Boolean(historyNotice)}
-            style={{
-              background:
-                emailingHistory || historyNotice
-                  ? "rgba(59, 130, 246, 0.14)"
-                  : "linear-gradient(135deg, #2563eb, #1d4ed8)",
-              color: "#fff",
-              border: "none",
-              borderRadius: "14px",
-              padding: "12px 18px",
-              minWidth: "190px",
-              boxShadow: "0 12px 24px rgba(37, 99, 235, 0.2)"
-            }}
-          >
-            {historyNotice ? "History Offline" : emailingHistory ? "Sending..." : "Email My History"}
-          </button>
         </div>
 
         <motion.div
@@ -211,21 +163,6 @@ function Transactions() {
             border: "1px solid #dbe4ef"
           }}
         >
-          {notice.text ? (
-            <div
-              className="mb-4"
-              style={{
-                background: notice.type === "success" ? "rgba(16, 185, 129, 0.12)" : "rgba(239, 68, 68, 0.1)",
-                color: notice.type === "success" ? "#047857" : "#b91c1c",
-                border: `1px solid ${notice.type === "success" ? "rgba(16, 185, 129, 0.18)" : "rgba(239, 68, 68, 0.18)"}`,
-                borderRadius: "14px",
-                padding: "14px 16px"
-              }}
-            >
-              {notice.text}
-            </div>
-          ) : null}
-
           {historyNotice ? (
             <div
               className="mb-4"

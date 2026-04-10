@@ -171,6 +171,10 @@
   color: #6b7280;
 }
 
+.auth-links-single {
+  justify-content: flex-start;
+}
+
 .auth-links a {
   text-decoration: none;
   color: #2563eb;
@@ -212,6 +216,70 @@
 .auth-input,
 .auth-password-box {
   transition: all 0.2s ease;
+}
+
+.auth-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4b5563;
+  margin-bottom: 8px;
+}
+
+.auth-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.auth-text-link {
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-text-link:hover {
+  color: #1d4ed8;
+}
+
+.auth-step-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.auth-step-pill {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #eef2f7;
+  border: 1px solid #d7dde6;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.auth-step-pill.is-active {
+  background: #e6ecff;
+  border-color: #b8c6f5;
+  color: #3150bf;
+}
+
+.auth-note {
+  background: #eef4ff;
+  border: 1px solid #d4defb;
+  color: #355070;
+  border-radius: 16px;
+  padding: 14px 16px;
+  font-size: 14px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.auth-code-input {
+  text-align: center;
+  letter-spacing: 10px;
+  font-size: 24px;
 }
 
  

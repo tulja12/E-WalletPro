@@ -27,7 +27,15 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/signup", "/auth/login", "/auth/login/**", "/auth/verify-otp", "/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers(
+                                "/signup",
+                                "/auth/login",
+                                "/auth/login/**",
+                                "/auth/verify-otp",
+                                "/auth/forgot-password/**",
+                                "/actuator/health",
+                                "/actuator/info"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2

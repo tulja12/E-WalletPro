@@ -12,7 +12,7 @@
 
     <artifactId>local-activemq-broker</artifactId>
     <name>local-activemq-broker</name>
-    <description>Local ActiveMQ broker runner for non-Docker development</description>
+    <description>Local ActiveMQ broker runner for local development</description>
 
     <dependencies>
         <dependency>

@@ -173,11 +173,9 @@ function Transactions() {
         <div className="mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
           <div>
             <h2 className="fw-bold mb-1" style={{ color: "#0f172a", letterSpacing: "-0.6px" }}>
-              Process History
+              Payment History
             </h2>
-            <p style={{ color: "#64748b", margin: 0 }}>
-              Latest activity first, with exact time for every wallet event.
-            </p>
+
           </div>
 
           <button

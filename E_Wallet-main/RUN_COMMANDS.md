@@ -22,21 +22,7 @@ By default this now uses local infrastructure:
 - ActiveMQ is started from the project itself on `localhost:61616`
 - Frontend is started automatically unless you pass `-SkipFrontend`
 
-If you still want Docker for infra:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\start-ewallet.ps1 -Infrastructure docker
-```
-
 ## Manual commands
-
-Start infrastructure with Docker:
-
-```powershell
-docker compose up -d mysql activemq
-```
-
-Start everything locally without Docker:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start-ewallet.ps1
@@ -85,7 +71,6 @@ Auth service:   http://localhost:8081/actuator/health
 User service:   http://localhost:8082/actuator/health
 Wallet service: http://localhost:8083/actuator/health
 Txn service:    http://localhost:8084/actuator/health
-ActiveMQ UI:    http://localhost:8161/admin
 Frontend:       http://localhost:5173
 ```
 
@@ -104,4 +89,4 @@ Without ActiveMQ:
 - wallet actions may fail with `ActiveMQ is unavailable`
 - transaction history will not be populated from wallet events
 
-The local launcher starts a lightweight broker process for development. It does not provide the Docker image's web admin UI on port `8161`; if you need the admin console, use Docker or a full local ActiveMQ Classic installation.
+The local launcher starts a lightweight broker process for development. It does not provide an admin web console.

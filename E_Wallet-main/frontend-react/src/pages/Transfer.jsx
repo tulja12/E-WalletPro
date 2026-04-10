@@ -24,7 +24,7 @@ const formatCurrency = (value) =>
     maximumFractionDigits: 2
   })}`;
 
-const maskCard = (cardNumber) => `•••• ${String(cardNumber || "").slice(-4) || "0000"}`;
+const maskCard = (cardNumber) => `**** ${String(cardNumber || "").slice(-4) || "0000"}`;
 
 function Transfer() {
   const [mode, setMode] = useState("self");
@@ -210,13 +210,13 @@ function Transfer() {
 
   return (
     <div style={{ padding: "40px 20px" }}>
-      <div className="container" style={{ maxWidth: "1140px", margin: "0 auto" }}>
+      <div className="container" style={{ maxWidth: "1260px", margin: "0 auto" }}>
         <div className="mb-4">
           <h2 className="fw-bold mb-1" style={{ color: "#0f172a", letterSpacing: "-0.7px" }}>
             Transfer Funds
           </h2>
           <p style={{ color: "#64748b", margin: 0 }}>
-            Move money between your own cards or send a wallet payment to another user.
+            Move money between your linked accounts or send a wallet payment to another user.
           </p>
         </div>
 
@@ -284,7 +284,7 @@ function Transfer() {
                 >
                   <h5 className="fw-bold mb-1" style={{ color: "#0f172a" }}>Send from Wallet</h5>
                   <p style={{ color: "#64748b", marginBottom: "24px", fontSize: "14px" }}>
-                    Wallet-to-user payments do not require a bank card selection.
+                    Wallet-to-user payments do not require a bank account selection.
                   </p>
 
                   <form onSubmit={handlePeerTransfer}>
@@ -414,7 +414,7 @@ function Transfer() {
                   >
                     <div className="fw-semibold mb-2">Transfer Note</div>
                     <p className="mb-0" style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: "1.6" }}>
-                      The payment is applied immediately from the wallet. Process history will update when the history service syncs.
+                      The payment is applied immediately from the wallet. Process history updates automatically after sync.
                     </p>
                   </div>
                 </div>
@@ -426,121 +426,8 @@ function Transfer() {
               initial={{ opacity: 0, x: 18 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -18 }}
-              className="row g-4"
+              className="row g-4 align-items-start"
             >
-              <div className="col-lg-8">
-                <div
-                  style={{
-                    background: "#ffffff",
-                    borderRadius: "28px",
-                    padding: "28px",
-                    border: "1px solid #dbe4ef",
-                    boxShadow: "0 24px 56px rgba(148, 163, 184, 0.16)"
-                  }}
-                >
-                  <div className="row g-4">
-                    <div className="col-md-6">
-                      <div className="d-flex justify-content-between align-items-center mb-3">
-                        <div>
-                          <h5 className="fw-bold mb-1" style={{ color: "#0f172a" }}>From</h5>
-                          <p style={{ color: "#64748b", margin: 0, fontSize: "14px" }}>
-                            Choose the source card.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="d-flex flex-column gap-3">
-                        {accounts.map((account, index) => {
-                          const selected = String(fromAccount) === String(account.id);
-
-                          return (
-                            <motion.button
-                              key={`from-${account.id}`}
-                              type="button"
-                              whileHover={{ y: -2 }}
-                              whileTap={{ scale: 0.99 }}
-                              onClick={() => {
-                                setFromAccount(String(account.id));
-                                setSourcePin("");
-                                setMessage("");
-                              }}
-                              style={cardButtonStyle(selected, false, cardGradients[index % cardGradients.length])}
-                            >
-                              <div className="d-flex justify-content-between align-items-start mb-3">
-                                <div>
-                                  <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "rgba(255,255,255,0.64)" }}>
-                                    {account.bankName}
-                                  </div>
-                                  <div className="fw-bold mt-2" style={{ fontSize: "22px" }}>{maskCard(account.cardNumber)}</div>
-                                </div>
-                                <span style={{ fontSize: "12px", color: "#bfdbfe", fontWeight: 700 }}>
-                                  {selected ? "Selected" : ""}
-                                </span>
-                              </div>
-                              <div className="d-flex justify-content-between align-items-end">
-                                <div>
-                                  <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "rgba(255,255,255,0.64)" }}>
-                                    Balance
-                                  </div>
-                                  <div className="fw-semibold">{formatCurrency(account.balance)}</div>
-                                </div>
-                                <div style={{ color: account.pinConfigured ? "#a7f3d0" : "#fde68a", fontSize: "12px", fontWeight: 600 }}>
-                                  {account.pinConfigured ? "PIN ready" : "PIN missing"}
-                                </div>
-                              </div>
-                            </motion.button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="col-md-6">
-                      <div className="d-flex justify-content-between align-items-center mb-3">
-                        <div>
-                          <h5 className="fw-bold mb-1" style={{ color: "#0f172a" }}>To</h5>
-                          <p style={{ color: "#64748b", margin: 0, fontSize: "14px" }}>
-                            Choose the destination card.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="d-flex flex-column gap-3">
-                        {accounts.map((account, index) => {
-                          const selected = String(toAccount) === String(account.id);
-                          const disabled = String(fromAccount) === String(account.id);
-
-                          return (
-                            <motion.button
-                              key={`to-${account.id}`}
-                              type="button"
-                              whileHover={{ y: disabled ? 0 : -2 }}
-                              whileTap={{ scale: disabled ? 1 : 0.99 }}
-                              disabled={disabled}
-                              onClick={() => {
-                                setToAccount(String(account.id));
-                                setMessage("");
-                              }}
-                              style={cardButtonStyle(selected, disabled, cardGradients[(index + 1) % cardGradients.length])}
-                            >
-                              <div className="d-flex justify-content-between align-items-start mb-3">
-                                <div>
-                                  <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "rgba(255,255,255,0.64)" }}>
-                                    {account.bankName}
-                                  </div>
-                                  <div className="fw-bold mt-2" style={{ fontSize: "22px" }}>{maskCard(account.cardNumber)}</div>
-                                </div>
-                                <span style={{ fontSize: "12px", color: disabled ? "#cbd5e1" : "#bfdbfe", fontWeight: 700 }}>
-                                  {disabled ? "Same card" : selected ? "Selected" : ""}
-                                </span>
-                              </div>
-                              <div className="fw-semibold">{formatCurrency(account.balance)}</div>
-                            </motion.button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               <div className="col-lg-4">
                 <div
                   style={{
@@ -551,28 +438,91 @@ function Transfer() {
                     boxShadow: "0 24px 56px rgba(148, 163, 184, 0.16)"
                   }}
                 >
-                  <h5 className="fw-bold mb-1" style={{ color: "#0f172a" }}>Transfer Details</h5>
-                  <p style={{ color: "#64748b", marginBottom: "24px", fontSize: "14px" }}>
-                    Authorize the source card and confirm the amount.
+                  <div className="mb-3">
+                    <h5 className="fw-bold mb-1" style={{ color: "#0f172a" }}>From</h5>
+                    <p style={{ color: "#64748b", margin: 0, fontSize: "14px" }}>
+                      Choose the source account.
+                    </p>
+                  </div>
+                  <div className="d-flex flex-column gap-3">
+                    {accounts.map((account, index) => {
+                      const selected = String(fromAccount) === String(account.id);
+
+                      return (
+                        <motion.button
+                          key={`from-${account.id}`}
+                          type="button"
+                          whileHover={{ y: -2 }}
+                          whileTap={{ scale: 0.99 }}
+                          onClick={() => {
+                            setFromAccount(String(account.id));
+                            setSourcePin("");
+                            setMessage("");
+                          }}
+                          style={cardButtonStyle(selected, false, cardGradients[index % cardGradients.length])}
+                        >
+                          <div className="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                              <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "rgba(255,255,255,0.64)" }}>
+                                {account.bankName}
+                              </div>
+                              <div className="fw-bold mt-2" style={{ fontSize: "22px" }}>{maskCard(account.cardNumber)}</div>
+                            </div>
+                            <span style={{ fontSize: "12px", color: "#bfdbfe", fontWeight: 700 }}>
+                              {selected ? "Selected" : ""}
+                            </span>
+                          </div>
+                          <div className="d-flex justify-content-between align-items-end">
+                            <div>
+                              <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "rgba(255,255,255,0.64)" }}>
+                                Balance
+                              </div>
+                              <div className="fw-semibold">{formatCurrency(account.balance)}</div>
+                            </div>
+                            <div style={{ color: account.pinConfigured ? "#a7f3d0" : "#fde68a", fontSize: "12px", fontWeight: 600 }}>
+                              {account.pinConfigured ? "PIN ready" : "PIN missing"}
+                            </div>
+                          </div>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-lg-4">
+                <div
+                  style={{
+                    background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+                    borderRadius: "28px",
+                    padding: "28px",
+                    border: "1px solid #dbe4ef",
+                    boxShadow: "0 24px 56px rgba(148, 163, 184, 0.16)"
+                  }}
+                >
+                  <h5 className="fw-bold mb-1 text-center" style={{ color: "#0f172a" }}>Transfer Details</h5>
+                  <p className="text-center" style={{ color: "#64748b", marginBottom: "24px", fontSize: "14px" }}>
+                    Enter the amount, review the route, and authorize with the source account PIN.
                   </p>
 
                   <form onSubmit={handleSelfTransfer}>
                     <div
-                      className="mb-3"
+                      className="mb-4"
                       style={{
-                        borderRadius: "18px",
+                        borderRadius: "22px",
                         border: "1px solid #dbe4ef",
-                        background: "#f8fafc",
-                        padding: "16px"
+                        background: "#ffffff",
+                        padding: "18px",
+                        boxShadow: "0 14px 28px rgba(148, 163, 184, 0.1)"
                       }}
                     >
-                      <div className="d-flex justify-content-between align-items-start">
+                      <div className="d-flex justify-content-between align-items-start mb-3">
                         <div>
-                          <div className="fw-semibold" style={{ color: "#0f172a" }}>
-                            {selectedFromAccount ? `${selectedFromAccount.bankName} ${maskCard(selectedFromAccount.cardNumber)}` : "Source card"}
+                          <div style={{ color: "#64748b", fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                            Route
                           </div>
-                          <div style={{ color: "#64748b", fontSize: "13px" }}>
-                            {selectedToAccount ? `To ${selectedToAccount.bankName} ${maskCard(selectedToAccount.cardNumber)}` : "Pick a destination card"}
+                          <div className="fw-semibold mt-1" style={{ color: "#0f172a" }}>
+                            {selectedFromAccount ? `${selectedFromAccount.bankName} ${maskCard(selectedFromAccount.cardNumber)}` : "Choose source"}
                           </div>
                         </div>
                         {selectedFromAccount ? (
@@ -580,6 +530,17 @@ function Transfer() {
                             {selectedFromAccount.pinConfigured ? "PIN ready" : "PIN missing"}
                           </span>
                         ) : null}
+                      </div>
+
+                      <div
+                        className="d-flex align-items-center justify-content-center"
+                        style={{ color: "#2563eb", fontWeight: 700, marginBottom: "10px", letterSpacing: "1px" }}
+                      >
+                        TO
+                      </div>
+
+                      <div className="fw-semibold" style={{ color: "#0f172a" }}>
+                        {selectedToAccount ? `${selectedToAccount.bankName} ${maskCard(selectedToAccount.cardNumber)}` : "Choose destination"}
                       </div>
                     </div>
 
@@ -616,7 +577,9 @@ function Transfer() {
                             boxShadow: "inset 0 2px 4px rgba(148,163,184,0.12)",
                             borderLeft: "none",
                             borderTopLeftRadius: 0,
-                            borderBottomLeftRadius: 0
+                            borderBottomLeftRadius: 0,
+                            fontSize: "18px",
+                            fontWeight: 700
                           }}
                         />
                       </div>
@@ -624,7 +587,7 @@ function Transfer() {
 
                     <div className="mb-4">
                       <label className="form-label fw-semibold" style={{ color: "#334155", fontSize: "13px" }}>
-                        Source Card PIN
+                        Source Account PIN
                       </label>
                       <input
                         type="password"
@@ -642,6 +605,9 @@ function Transfer() {
                           boxShadow: "inset 0 2px 4px rgba(148,163,184,0.12)"
                         }}
                       />
+                      <small className="d-block mt-2" style={{ color: "#64748b" }}>
+                        Only the source account PIN is required.
+                      </small>
                     </div>
 
                     <motion.button
@@ -665,6 +631,59 @@ function Transfer() {
                       Transfer Now
                     </motion.button>
                   </form>
+                </div>
+              </div>
+
+              <div className="col-lg-4">
+                <div
+                  style={{
+                    background: "#ffffff",
+                    borderRadius: "28px",
+                    padding: "28px",
+                    border: "1px solid #dbe4ef",
+                    boxShadow: "0 24px 56px rgba(148, 163, 184, 0.16)"
+                  }}
+                >
+                  <div className="mb-3">
+                    <h5 className="fw-bold mb-1" style={{ color: "#0f172a" }}>To</h5>
+                    <p style={{ color: "#64748b", margin: 0, fontSize: "14px" }}>
+                      Choose the destination account.
+                    </p>
+                  </div>
+                  <div className="d-flex flex-column gap-3">
+                    {accounts.map((account, index) => {
+                      const selected = String(toAccount) === String(account.id);
+                      const disabled = String(fromAccount) === String(account.id);
+
+                      return (
+                        <motion.button
+                          key={`to-${account.id}`}
+                          type="button"
+                          whileHover={{ y: disabled ? 0 : -2 }}
+                          whileTap={{ scale: disabled ? 1 : 0.99 }}
+                          disabled={disabled}
+                          onClick={() => {
+                            setToAccount(String(account.id));
+                            setMessage("");
+                          }}
+                          style={cardButtonStyle(selected, disabled, cardGradients[(index + 1) % cardGradients.length])}
+                        >
+                          <div className="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                              <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "rgba(255,255,255,0.64)" }}>
+                                {account.bankName}
+                              </div>
+                              <div className="fw-bold mt-2" style={{ fontSize: "22px" }}>{maskCard(account.cardNumber)}</div>
+                            </div>
+                            <span style={{ fontSize: "12px", color: disabled ? "#cbd5e1" : "#bfdbfe", fontWeight: 700 }}>
+                              {disabled ? "Same card" : selected ? "Selected" : ""}
+                            </span>
+                          </div>
+                          <div className="fw-semibold">{formatCurrency(account.balance)}</div>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </motion.div>

@@ -1,6 +1,4 @@
 param(
-    [ValidateSet("local", "docker")]
-    [string]$Infrastructure = "local",
     [switch]$SkipFrontend,
     [switch]$DryRun
 )
@@ -179,13 +177,6 @@ function Ensure-LocalBroker([string]$mavenQuoted) {
     Wait-ForPort -port 61616 -timeoutSeconds 20 -name "ActiveMQ broker"
 }
 
-function Ensure-DockerInfrastructure {
-    Require-Command "docker"
-    Open-Terminal $root "docker compose up -d mysql activemq" "ewallet-docker-infra"
-    Wait-ForPort -port 3306 -timeoutSeconds 30 -name "MySQL"
-    Wait-ForPort -port 61616 -timeoutSeconds 30 -name "ActiveMQ broker"
-}
-
 if (-not $SkipFrontend) {
     Require-Command "npm"
 }
@@ -193,13 +184,9 @@ if (-not $SkipFrontend) {
 $maven = Resolve-MavenCommand
 $mavenQuoted = "'" + $maven.Replace("'", "''") + "'"
 
-Write-Step "Infrastructure mode: $Infrastructure"
-if ($Infrastructure -eq "docker") {
-    Ensure-DockerInfrastructure
-} else {
-    Ensure-LocalMySql
-    Ensure-LocalBroker $mavenQuoted
-}
+Write-Step "Infrastructure mode: local"
+Ensure-LocalMySql
+Ensure-LocalBroker $mavenQuoted
 
 Open-Terminal $backend "& $mavenQuoted -pl service-registry spring-boot:run" "ewallet-service-registry"
 if (-not $DryRun) {

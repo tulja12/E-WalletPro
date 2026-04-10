@@ -62,7 +62,7 @@ function SidebarLayout() {
             <i className="bi bi-send-fill me-3" style={{ fontSize: '1.2rem' }}></i> Send Payment
           </NavLink>
           <NavLink to="/transactions" style={({ isActive }) => navItemStyle(isActive)}>
-            <i className="bi bi-receipt me-3" style={{ fontSize: '1.2rem' }}></i> Process History
+            <i className="bi bi-receipt me-3" style={{ fontSize: '1.2rem' }}></i> Payment History
           </NavLink>
           <NavLink to="/accounts" style={({ isActive }) => navItemStyle(isActive)}>
             <i className="bi bi-credit-card-fill me-3" style={{ fontSize: '1.2rem' }}></i> Linked Cards

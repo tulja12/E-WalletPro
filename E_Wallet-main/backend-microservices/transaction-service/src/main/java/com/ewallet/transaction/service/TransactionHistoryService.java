@@ -148,63 +148,70 @@ public class TransactionHistoryService {
         String toLabel;
         String impactType;
         String impactLabel;
+        String detailLine;
 
         switch (record.getType()) {
             case "ADD_MONEY" -> {
                 typeLabel = "Wallet top-up";
-                summary = "Money added directly to your wallet";
-                description = "Funds were added straight into your wallet balance.";
+                summary = "Added to wallet";
+                description = "Funds were added directly to your wallet.";
                 fromLabel = "Direct deposit";
                 toLabel = "Your wallet";
                 impactType = "CREDIT";
                 impactLabel = "Credit";
+                detailLine = "Direct deposit -> Wallet";
             }
             case "ADD_FROM_BANK" -> {
-                typeLabel = "Bank to wallet transfer";
-                summary = "Money moved from your bank account to your wallet";
-                description = "You funded your wallet using one of your linked bank accounts.";
-                fromLabel = "Your bank account";
+                typeLabel = "Add money";
+                summary = "Added from bank";
+                description = "Money was added from your linked bank account.";
+                fromLabel = "Linked bank account";
                 toLabel = "Your wallet";
                 impactType = "CREDIT";
                 impactLabel = "Credit";
+                detailLine = "Linked bank account -> Wallet";
             }
             case "SELF_TRANSFER" -> {
-                typeLabel = "Own account transfer";
-                summary = "Money moved between your own bank accounts";
-                description = "You transferred money between two bank accounts that belong to you.";
-                fromLabel = "Your bank account";
-                toLabel = "Your bank account";
+                typeLabel = "Transfer";
+                summary = "Transfer between linked accounts";
+                description = "Money was moved between two of your linked accounts.";
+                fromLabel = "Linked account";
+                toLabel = "Linked account";
                 impactType = "INTERNAL";
                 impactLabel = "Internal transfer";
+                detailLine = "Linked account -> Linked account";
             }
             case "WITHDRAW_TO_BANK" -> {
-                typeLabel = "Wallet withdrawal";
-                summary = "Money withdrawn from your wallet to your bank account";
-                description = "You moved money out of your wallet and into your linked bank account.";
+                typeLabel = "Withdrawal";
+                summary = "Withdrawn to bank";
+                description = "Money was moved from your wallet to your linked bank account.";
                 fromLabel = "Your wallet";
-                toLabel = "Your bank account";
+                toLabel = "Linked bank account";
                 impactType = "DEBIT";
                 impactLabel = "Debit";
+                detailLine = "Wallet -> Linked bank account";
             }
             case "WALLET_TRANSFER" -> {
                 if (currentUserIsSender) {
                     String receiverLabel = resolveUserLabel(record.getReceiverId(), usersById);
-                    typeLabel = "Wallet transfer sent";
-                    summary = "Money sent to " + receiverLabel;
-                    description = "You transferred wallet funds to another user.";
+                    typeLabel = "Payment sent";
+                    summary = "Sent to " + receiverLabel;
+                    description = "Wallet payment sent to another user.";
                     fromLabel = "Your wallet";
                     toLabel = receiverLabel;
                     impactType = "DEBIT";
                     impactLabel = "Debit";
+                    detailLine = "Wallet -> " + receiverLabel;
                 } else {
                     String senderLabel = resolveUserLabel(record.getSenderId(), usersById);
-                    typeLabel = "Wallet transfer received";
-                    summary = "Money received from " + senderLabel;
-                    description = "Another user transferred wallet funds to you.";
+                    typeLabel = "Payment received";
+                    summary = "Received from " + senderLabel;
+                    description = "Wallet payment received from another user.";
                     fromLabel = senderLabel;
                     toLabel = "Your wallet";
                     impactType = "CREDIT";
                     impactLabel = "Credit";
+                    detailLine = senderLabel + " -> Wallet";
                 }
             }
             default -> {
@@ -219,6 +226,7 @@ public class TransactionHistoryService {
                         : "Internal transfer";
                 summary = typeLabel;
                 description = "Transaction recorded in your account history.";
+                detailLine = fromLabel + " -> " + toLabel;
             }
         }
 
@@ -229,7 +237,7 @@ public class TransactionHistoryService {
         item.setToLabel(toLabel);
         item.setImpactType(impactType);
         item.setImpactLabel(impactLabel);
-        item.setDetailLine("From " + fromLabel + " to " + toLabel);
+        item.setDetailLine(detailLine);
         return item;
     }
 

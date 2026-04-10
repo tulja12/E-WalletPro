@@ -177,9 +177,6 @@ function Dashboard() {
               <h1 className="fw-bold mt-2 mb-2" style={{ letterSpacing: "-1px" }}>
                 Welcome back, {username}
               </h1>
-              <p style={{ color: "rgba(255,255,255,0.8)", maxWidth: "620px", marginBottom: "26px" }}>
-                Track wallet health, linked card readiness, and recent process activity from one place.
-              </p>
 
               <div className="d-flex flex-wrap gap-3">
                 <Link
